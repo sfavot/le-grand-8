@@ -1,0 +1,11 @@
+# Service API (réseau privé Railway recommandé).
+# Root Directory Railway : huitparfait-api
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"

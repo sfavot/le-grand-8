@@ -6,6 +6,10 @@ import {
     UPSERT_GROUP_FAILURE,
     DELETE_GROUP,
     DELETE_GROUP_FAILURE,
+    LEAVE_GROUP,
+    LEAVE_GROUP_FAILURE,
+    JOIN_GROUP_SUCCESS,
+    JOIN_GROUP_FAILURE,
 } from '../actions/groups'
 
 const initialState = []
@@ -34,15 +38,26 @@ export default function (state = initialState, action) {
             })
 
         case DELETE_GROUP:
+        case LEAVE_GROUP:
             return state.filter((group) => {
                 return group.id !== action.group.id
             })
 
         case DELETE_GROUP_FAILURE:
+        case LEAVE_GROUP_FAILURE:
             return [
                 ...state,
                 action.group,
             ]
+
+        case JOIN_GROUP_SUCCESS:
+            return _.sortBy([
+                ...state.filter((group) => group.id !== action.group.id),
+                action.group,
+            ], (group) => group.name.toLowerCase())
+
+        case JOIN_GROUP_FAILURE:
+            return state.filter((group) => group.id !== action.group.id)
 
         default:
             return state

@@ -1,6 +1,6 @@
 import { generateSVGDataURIString } from 'identicons'
-import { cypher } from '../infra/neo4j'
-import initAnimalAdj from '../infra/animal-adj/animal-adj'
+import { cypher } from '../infra/neo4j.js'
+import initAnimalAdj from '../infra/animal-adj/animal-adj.js'
 
 const animalAdj = initAnimalAdj('fr')
 

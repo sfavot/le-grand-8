@@ -10,6 +10,8 @@ export default function (state = initialState, action) {
             return action.predictions
 
         case FETCH_PREDICTIONS:
+            return state
+
         case FETCH_PREDICTIONS_FAILURE:
             return null
 

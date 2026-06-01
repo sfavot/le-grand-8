@@ -8,8 +8,9 @@ defaultEntryPoints = ["http", "https"]
   address = ":443"
     [entryPoints.https.tls]
 [acme]
-email = "huitparfait@gmail.com"
+# À configurer pour ton domaine en prod (pas huitparfait.fr)
+email = "admin@example.com"
 storageFile = "/acme/acme.json"
 entryPoint = "https"
 [[acme.domains]]
-  main = "huitparfait.fr"
+  main = "pronos.example.com"

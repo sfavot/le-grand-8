@@ -2,7 +2,7 @@
   "name": "huitparfait-front",
   "version": "1.0.0",
   "description": "huitparfait-front",
-  "author": "Huit Parfait Team",
+  "author": "Suzy Favot (fork; original: huitparfait-2016)",
   "private": true,
   "scripts": {
     "dev": "node build/dev-server.js",
@@ -27,6 +27,7 @@
     "vue-validator": "2.1.3"
   },
   "devDependencies": {
+    "dotenv": "^8.6.0",
     "babel-core": "^6.0.0",
     "babel-eslint": "^6.0.4",
     "babel-loader": "^6.0.0",

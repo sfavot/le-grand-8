@@ -6,8 +6,8 @@
                 <h2 class="card-title">Bienvenue !</h2>
                 <p>Envie de pronostiquer des matchs entre amis ?</p>
                 <p><strong>
-                    Huit parfait</strong> remplace la bonne vieille feuille Excel partagée par un site accessible sur
-                    ordinateur, tablette et téléphone pour le plaisir de tous.
+                    Le Grand 8</strong> remplace la bonne vieille feuille Excel partagée par un site accessible sur
+                    ordinateur, tablette et téléphone pour le plaisir de tous (Euro, Coupe du monde, championnats…).
                 </p>
                 <ol>
                     <li>Créez un ou plusieurs groupes</li>
@@ -16,6 +16,16 @@
                     <li>Surveillez le classement...</li>
                     <li>... et amusez vous bien ;-)</li>
                 </ol>
+                <p class="card--provenance">
+                    <strong>Ce site n'est pas huitparfait.fr.</strong>
+                    J'ai découvert le site Huit Parfait lors de l'Euro 2016 puis de la Coupe du monde 2018 sur
+                    <a href="https://huitparfait.fr" rel="noopener noreferrer">huitparfait.fr</a>.
+                    Le site d'origine n'étant plus actif, j'ai repris le
+                    <a href="https://github.com/huitparfait/huitparfait-2016" rel="noopener noreferrer">code open source</a>
+                    du jeu <em>Huit Parfait</em>, modernisé sous le nom <strong>Le Grand 8</strong>, et je l'héberge pour des amis.
+                    Tout le mérite du concept et du code initial revient à
+                    <a href="https://github.com/huitparfait/huitparfait-2016" rel="noopener noreferrer">l'équipe Huit Parfait (2016)</a>.
+                </p>
             </card>
             <card class="card--login" v-if="user == null">
                 <h2 class="card-title">Connexion</h2>
@@ -23,19 +33,17 @@
                     Pour vous éviter de créer un n-ième mot de passe, la connexion se fait avec un site externe.
                 </p>
                 <p class="card--login-allBtn">
-                    <a class="loginBtn loginBtn--facebook" href="/auth/facebook">avec Facebook</a>
-                    <a class="loginBtn loginBtn--google" href="/auth/google">avec Google</a>
-                    <a class="loginBtn loginBtn--yahoo" href="/auth/yahoo">avec Yahoo</a>
+                    <a class="loginBtn loginBtn--google" href="/auth/google">Connexion avec Google</a>
                 </p>
             </card>
         </card-list>
 
         <card>
-            <h2 class="card-title">Atteindre le Huit Parfait&nbsp;!</h2>
+            <h2 class="card-title">Atteindre le Grand 8&nbsp;!</h2>
 
             <p>Le but du jeu est bien entendu d'avoir le plus gros ... score !</p>
             <p>
-                Pour chaque match, vous pouvez gagner jusqu'à 8 points : le fameux <strong>Huit Parfait</strong> !
+                Pour chaque match, vous pouvez gagner jusqu'à 8 points : le fameux <strong>Grand 8</strong> !
                 Si vous êtes très mauvais, vous pouvez aussi perdre jusqu'à 3 points, ce qui n'est pas cool.
             </p>
             <p>Vous n'avez que 3 choses à pronostiquer :</p>
@@ -86,7 +94,7 @@
             </table>
             <p>
                 Si vous avez le nombre de buts exact pour les deux équipes et que vous gagnez la risquette maximum,
-                vous obtenez un <strong>Huit Parfait&nbsp;!</strong>
+                vous obtenez un <strong>Grand 8&nbsp;!</strong>
             </p>
         </card>
 
@@ -96,7 +104,7 @@
             Une risquette vous permet de "risquer" des points sur un fait de match prédéfini.
         </p>
         <p>
-            Par exemple, pour le match "France - Roumanie", on vous propose une affirmation telle que
+            Par exemple, pour le match «&nbsp;Mexique&nbsp;-&nbsp;Afrique du Sud&nbsp;», on vous propose une affirmation telle que
             <strong>But du pied gauche</strong>.
             À vous de pronostiquer si cette risquette sera VRAIE ou FAUSSE. Vous pouvez risquer de 1 à 3 points.
             Si à la fin du match vous aviez raison, vous gagnez les points risqués, dans le cas contraire vous perdez
@@ -116,9 +124,9 @@
             </p>
             <p>
                 L'éventuelle séance de tirs au but n'est pas comptée pour comparer le score à votre pronostic.
-                Par exemple, le match "France&nbsp;-&nbsp;Suisse" se termine avec
-                <strong>1&nbsp;-&nbsp;1</strong> à la fin des prolongations et la Suisse gagne la séance de tirs au but
-                <strong>3&nbsp;-&nbsp;2</strong>.
+                Par exemple, un match à élimination directe «&nbsp;France&nbsp;-&nbsp;Portugal&nbsp;» se termine avec
+                <strong>1&nbsp;-&nbsp;1</strong> à la fin des prolongations et le Portugal gagne la séance de tirs au but
+                <strong>3&nbsp;-&nbsp;2</strong>. En phase de groupes de la Coupe du monde 2026, seul le score après 90&nbsp;minutes (et prolongations éventuelles) compte pour votre pronostic, pas les tirs au but.
             </p>
             <ul>
                 <li>
@@ -127,7 +135,7 @@
                 </li>
                 <li>
                     Si vous pronostiquez
-                    <strong>2&nbsp;-&nbsp;1</strong> pour la Suisse, même si celle-ci a gagnée le match aux tirs au but,
+                    <strong>2&nbsp;-&nbsp;1</strong> pour le Portugal, même si celui-ci a gagné le match aux tirs au but,
                     vous n'avez pas les 3 points pour
                     <em>"issue du match trouvé"</em>.
                 </li>
@@ -135,25 +143,25 @@
         </card>
 
         <card>
-            <h2 class="card-title">À propos du site</h2>
+            <h2 class="card-title">À propos de cette version</h2>
             <p>
-                Si vous avez la moindre remarque ou question sur le site, les règles etc... n'hésitez pas à contacter
-                l'équipe.
-                Nous avons réalisé ce site sur notre temps libre pour nous amuser et si possible pour vous permettre de vous
-                amuser aussi.
-                Il contient probablement quelques bugs, si c'est le cas, soyez indulgent et signalez les ;-)
+                Cette instance est maintenue sur mon temps libre pour des pronostics entre amis.
+                Il peut y avoir des bugs : les signalements sont les bienvenus sur GitHub.
             </p>
             <p>
-                Huit Parfait est un site de pronostics de foot entre amis.
-                Il ne s'agit en aucun cas d'un site de paris ou de jeux d'argent.
+                <strong>Le Grand 8</strong> est un jeu de pronostics foot entre amis (reprise du jeu
+                <em>Huit Parfait</em>, 2016). Il ne s'agit en aucun cas d'un site de paris ou de jeux d'argent.
             </p>
             <p>
-                Si le site ne fonctionne pas bien sur votre navigateur, il faut peut-être le mettre à jour...
+                Code source de cette reprise :
+                <a href="https://github.com/sfavot/huitparfait-2026" rel="noopener noreferrer">sfavot/huitparfait-2026</a>
+                , projet d'origine :
+                <a href="https://github.com/huitparfait/huitparfait-2016" rel="noopener noreferrer">huitparfait/huitparfait-2016</a>
+                (licence AGPL-3.0).
             </p>
-            <p class="btnBar">
-                <link-btn href="mailto:huitparfait@gmail.com">huitparfait@gmail.com</link-btn>
-                <link-btn href="https://twitter.com/huitparfait">@huitparfait</link-btn>
-                <link-btn href="https://github.com/huitparfait/huitparfait/">Github</link-btn>
+            <p class="faq-btnBar">
+                <link-btn class="faq-btnBar-btn" href="https://github.com/sfavot/huitparfait-2026/issues">Signaler un bug / question</link-btn>
+                <link-btn class="faq-btnBar-btn" href="https://github.com/huitparfait/huitparfait-2016">Projet d'origine (2016)</link-btn>
             </p>
         </card>
     </div>
@@ -176,6 +184,17 @@
         flex-basis: 100%;
     }
 
+    .card--provenance {
+        border-top: 1px dashed #ccc;
+        font-size: 0.95em;
+        margin-top: 1.25em;
+        padding-top: 1em;
+    }
+
+    .card--provenance a {
+        color: #3d8f6a;
+    }
+
     .card--login {
         flex-basis: 400px;
         overflow: visible;
@@ -194,16 +213,35 @@
         }
     }
 
-    .btnBar {
+    .faq-btnBar {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
         margin-top: 30px;
-        text-align: right;
+    }
+
+    .faq-btnBar-btn {
+        box-sizing: border-box;
+        display: block;
+        text-align: center;
+        white-space: normal;
+    }
+
+    @media (min-width: 500px) {
+        .faq-btnBar {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .faq-btnBar-btn {
+            display: inline-block;
+            width: auto;
+        }
     }
 
     .loginBtn,
     .contactBtn {
-        border: 1px solid #333;
-        border-bottom-width: 2px;
-        border-radius: 3px;
         color: #fff;
         font-weight: bold;
         padding: 8px 15px;
@@ -211,37 +249,18 @@
         text-align: center;
         text-decoration: none;
         white-space: nowrap;
+        border: 1px solid #333;
+        border-bottom-width: 2px;
+        border-radius: 3px;
     }
 
     .loginBtn {
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center center;
-        display: block;
-        overflow: hidden;
-        text-indent: -2000px;
-    }
-
-    .loginBtn img {
-        height: 50px;
-    }
-
-    .loginBtn--facebook {
-        background-color: #3b5998;
-        border-color: #2c4370;
-        background-image: url(../assets/facebook.svg);
+        display: inline-block;
     }
 
     .loginBtn--google {
         background-color: #4285F4;
         border-color: #3971cc;
-        background-image: url(../assets/google.svg);
-    }
-
-    .loginBtn--yahoo {
-        background-color: #6e329d;
-        border-color: #512675;
-        background-image: url(../assets/yahoo.svg);
     }
 
     .contactBtn {
@@ -252,7 +271,6 @@
     @media (min-width: 500px) and (max-width: 849px) {
         .loginBtn {
             margin: 0 10px;
-            min-width: 100px;
         }
     }
 

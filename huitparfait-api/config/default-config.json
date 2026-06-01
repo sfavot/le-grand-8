@@ -1,11 +1,7 @@
 {
   "env": {
     "doc": "The applicaton environment.",
-    "format": [
-      "production",
-      "development",
-      "test"
-    ],
+    "format": ["production", "development", "test"],
     "default": "development",
     "env": "NODE_ENV"
   },
@@ -13,29 +9,44 @@
   "server": {
     "port": {
       "doc": "Port to bind",
-      "format": "port",
+      "format": "int",
       "default": 3100,
-      "env": "SERVER_PORT"
+      "env": "API_SERVER_PORT"
     }
   },
 
   "httpSecret": {
-    "default": "foobar",
+    "doc": "Secret for HTTP basic auth (metrics). Required in production.",
+    "default": "",
     "env": "HTTP_SECRET"
+  },
+
+  "adminPassword": {
+    "doc": "Password for /api/admin (header X-Admin-Password). Required in production.",
+    "default": "",
+    "env": "ADMIN_PASSWORD"
   },
 
   "cookie": {
     "secret": {
-      "default": "7b8a8b90-a83b-4ac3-ae90-97e644b06d06",
+      "doc": "Cookie encryption secret. Required in production.",
+      "default": "",
       "env": "COOKIE_SECRET"
     },
     "isSecure": {
       "default": false,
       "env": "COOKIE_IS_SECURE"
     },
+    "isSameSite": {
+      "doc": "SameSite cookie attribute",
+      "default": "Lax",
+      "env": "COOKIE_SAME_SITE"
+    },
     "ttl": {
-      "format": "duration",
-      "default": "30 days"
+      "doc": "Cookie TTL in milliseconds (30 days)",
+      "format": "int",
+      "default": 2592000000,
+      "env": "COOKIE_TTL"
     }
   },
 
@@ -47,9 +58,18 @@
   },
 
   "neo4j": {
-    "url": {
-      "default": "http://neo4j:neo@localhost:7474",
-      "env": "NEO4J_URL"
+    "uri": {
+      "doc": "Neo4j Bolt URI. Required in production.",
+      "default": "bolt://localhost:7687",
+      "env": "NEO4J_URI"
+    },
+    "username": {
+      "default": "neo4j",
+      "env": "NEO4J_USERNAME"
+    },
+    "password": {
+      "default": "huitparfait-local",
+      "env": "NEO4J_PASSWORD"
     }
   }
 }

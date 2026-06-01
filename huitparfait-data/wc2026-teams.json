@@ -1,0 +1,76 @@
+{
+  "groups": {
+    "A": [
+      { "name": "Mexique", "countryCode": "mx" },
+      { "name": "Afrique du Sud", "countryCode": "za" },
+      { "name": "Corée du Sud", "countryCode": "kr" },
+      { "name": "République tchèque", "countryCode": "cz" }
+    ],
+    "B": [
+      { "name": "Canada", "countryCode": "ca" },
+      { "name": "Suisse", "countryCode": "ch" },
+      { "name": "Qatar", "countryCode": "qa" },
+      { "name": "Bosnie-Herzégovine", "countryCode": "ba" }
+    ],
+    "C": [
+      { "name": "Brésil", "countryCode": "br" },
+      { "name": "Maroc", "countryCode": "ma" },
+      { "name": "Haïti", "countryCode": "ht" },
+      { "name": "Écosse", "countryCode": "gb-sct" }
+    ],
+    "D": [
+      { "name": "États-Unis", "countryCode": "us" },
+      { "name": "Paraguay", "countryCode": "py" },
+      { "name": "Australie", "countryCode": "au" },
+      { "name": "Turquie", "countryCode": "tr" }
+    ],
+    "E": [
+      { "name": "Allemagne", "countryCode": "de" },
+      { "name": "Curaçao", "countryCode": "cw" },
+      { "name": "Côte d'Ivoire", "countryCode": "ci" },
+      { "name": "Équateur", "countryCode": "ec" }
+    ],
+    "F": [
+      { "name": "Pays-Bas", "countryCode": "nl" },
+      { "name": "Japon", "countryCode": "jp" },
+      { "name": "Tunisie", "countryCode": "tn" },
+      { "name": "Suède", "countryCode": "se" }
+    ],
+    "G": [
+      { "name": "Belgique", "countryCode": "be" },
+      { "name": "Égypte", "countryCode": "eg" },
+      { "name": "Iran", "countryCode": "ir" },
+      { "name": "Nouvelle-Zélande", "countryCode": "nz" }
+    ],
+    "H": [
+      { "name": "Espagne", "countryCode": "es" },
+      { "name": "Cap-Vert", "countryCode": "cv" },
+      { "name": "Arabie saoudite", "countryCode": "sa" },
+      { "name": "Uruguay", "countryCode": "uy" }
+    ],
+    "I": [
+      { "name": "France", "countryCode": "fr" },
+      { "name": "Sénégal", "countryCode": "sn" },
+      { "name": "Norvège", "countryCode": "no" },
+      { "name": "Irak", "countryCode": "iq" }
+    ],
+    "J": [
+      { "name": "Argentine", "countryCode": "ar" },
+      { "name": "Algérie", "countryCode": "dz" },
+      { "name": "Autriche", "countryCode": "at" },
+      { "name": "Jordanie", "countryCode": "jo" }
+    ],
+    "K": [
+      { "name": "Portugal", "countryCode": "pt" },
+      { "name": "Ouzbékistan", "countryCode": "uz" },
+      { "name": "Colombie", "countryCode": "co" },
+      { "name": "RD Congo", "countryCode": "cd" }
+    ],
+    "L": [
+      { "name": "Angleterre", "countryCode": "gb-eng" },
+      { "name": "Croatie", "countryCode": "hr" },
+      { "name": "Ghana", "countryCode": "gh" },
+      { "name": "Panama", "countryCode": "pa" }
+    ]
+  }
+}

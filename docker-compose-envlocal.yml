@@ -1,13 +1,17 @@
-version: '2'
+# Surcharges dev : les variables viennent surtout de .env + .env.local (voir make env-local).
+# Ce fichier ne duplique plus les secrets OAuth.
 
 services:
 
     huitparfait-auth:
         environment:
             NODE_ENV: development
-            FACEBOOK_CLIENT_ID: FACEBOOK_CLIENT_ID
-            FACEBOOK_CLIENT_SECRET: FACEBOOK_CLIENT_SECRET
-            GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID
-            GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET
-            YAHOO_CLIENT_ID: YAHOO_CLIENT_ID
-            YAHOO_CLIENT_SECRET: YAHOO_CLIENT_SECRET
+            # .env fixe API_SERVER_PORT=3100 ; l’auth doit joindre l’API sur le réseau Docker, pas localhost
+            PROXY_API_URL: http://huitparfait-api:3100
+
+    huitparfait-api:
+        environment:
+            NODE_ENV: development
+            NEO4J_URI: bolt://huitparfait-data:7687
+            NEO4J_USERNAME: neo4j
+            NEO4J_PASSWORD: huitparfait-local

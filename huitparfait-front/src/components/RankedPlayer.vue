@@ -16,7 +16,7 @@
                     <span class="pronos"><strong>{{ rankedPlayer.stats.nbPredictions }}</strong> {{ rankedPlayer.stats.nbPredictions | frenchPlural 'prono' }}</span>
                 </div>
                 <div class="perfects" :class="{ 'hidden': rankedPlayer.stats.nbPerfects === 0 }">
-                    <strong>{{ rankedPlayer.stats.nbPerfects }}</strong> {{ rankedPlayer.stats.nbPerfects | frenchPlural 'huit parfait' }}
+                    <strong>{{ rankedPlayer.stats.nbPerfects }}</strong> {{ rankedPlayer.stats.nbPerfects | frenchPlural 'grand 8' }}
                 </div>
             </div>
         </div>

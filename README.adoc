@@ -1,3 +1,122 @@
-= Huit Parfait !
+= Le Grand 8
 
-WIP
+Pronostics football entre amis : groupes, scores, « risquettes » et classements (Euro, CDM, championnats…).
+
+Reprise du jeu *Huit Parfait* (link:https://github.com/huitparfait/huitparfait-2016[huitparfait/huitparfait-2016], 2016) : sans lien avec link:https://huitparfait.fr[huitparfait.fr].
+Crédits et contact : link:CREDITS.md[CREDITS.md].
+
+== Prérequis
+
+* **Node.js 22+** (`nvm use` à la racine)
+* Docker et Docker Compose (Neo4j local)
+* OpenSSL (génération des clés JWT)
+
+== Stack (phase 2)
+
+* API & auth : **Node 22**, **@hapi/hapi 21**, modules ESM (`npm run dev` sans Babel)
+* Base : **Neo4j 5** via **Bolt** (`neo4j-driver`), plus l’ancien client HTTP Neo4j 2.x
+* Front : Vue 1 / Webpack 1 (modernisation prévue phase 4)
+
+== Démarrage rapide
+
+Un link:Makefile[Makefile] regroupe les commandes (`make help`, `make setup`, `make dev`).
+
+[source,bash]
+----
+nvm use
+make setup
+# éditer .env.local (secrets + Google OAuth)
+
+# Premier lancement Neo4j 5 : si migration depuis Neo4j 2.x, supprimer huitparfait-data/data
+make neo4j-up
+# Neo4j Browser : http://localhost:7474 (voir NEO4J_USERNAME / NEO4J_PASSWORD dans .env)
+make data-wc2026-generate
+make flags-wc2026
+# Neo4j Browser : exécuter huitparfait-data/init-data-2026wc.cql
+# (Euro 2016 : init-data-2016euro.cql : voir huitparfait-data/README.adoc)
+
+make dev
+# → http://localhost:3000
+----
+
+== Variables d'environnement
+
+[cols="1,2,1"]
+|===
+| Fichier | Rôle | Versionné
+
+| `.env` | Ports, URLs, `NEO4J_URI`, chemins JWT | oui
+| `.env.local` | `HTTP_SECRET`, `ADMIN_PASSWORD`, `COOKIE_SECRET`, `GOOGLE_*` | non
+| `.env.local.example` | Modèle | oui
+|===
+
+Chargement : `.env` puis `.env.local` via `scripts/load-env.js`.
+
+Variables Neo4j importantes :
+
+[source,bash]
+----
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=huitparfait-local
+----
+
+=== Clés JWT
+
+[source,bash]
+----
+make keys
+----
+
+Fichiers dans `keys/` (non versionnés). Chemins dans `.env` : `../keys/jwt-*.pem` (résolus depuis api/auth).
+
+=== OAuth Google
+
+Dans `.env.local` : `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+Redirect URI : `http://localhost:3000/auth/google`.
+
+== Services en dev
+
+| Service | Port | Commande |
+|---------|------|----------|
+| Auth (entrée navigateur) | 3000 | `cd huitparfait-auth && npm run dev` |
+| API | 3100 | `cd huitparfait-api && npm run dev` |
+| Front (webpack) | 8081 | `cd huitparfait-front && npm run dev` |
+
+Swagger API (dev) : http://localhost:3100/console
+
+== Production (Railway + Neo4j Aura)
+
+Guide détaillé : link:deploy/railway/DEPLOY.adoc[deploy/railway/DEPLOY.adoc].
+
+Deux services Railway recommandés :
+
+* **api** : `huitparfait-api/` (réseau privé), Neo4j Aura, `JWT_PUBLIC_KEY`
+* **web** : `Dockerfile.railway-web` à la racine (auth + front), URL publique, Google OAuth
+
+Variables : modèles dans `deploy/railway/api.env.example` et `web.env.example`.
+
+OAuth prod : `https://<domaine>/auth/google`.
+
+== Structure
+
+* `huitparfait-front` : SPA Vue.js
+* `huitparfait-auth` : OAuth + proxy
+* `huitparfait-api` : REST + Neo4j
+* `huitparfait-data` : scripts Cypher
+
+Modèle : `huitparfait-design/data/README.adoc`.
+
+== Qualité & CI
+
+[source,bash]
+----
+make ci          # lint api/auth + tests unitaires
+make test        # calculatePoints, calculateRank
+make audit       # npm audit (échoue si vulnérabilité high+)
+----
+
+GitHub Actions : `.github/workflows/ci.yml` (push / PR sur `main`).
+
+Tests API : `huitparfait-api/test/` (runner Node natif, sans Neo4j).

@@ -1,5 +1,8 @@
 /* eslint complexity: 0 */
 import {
+    DELETE_ACCOUNT,
+    DELETE_ACCOUNT_FAILURE,
+    DELETE_ACCOUNT_SUCCESS,
     FETCH_CURRENT_USER,
     FETCH_CURRENT_USER_SUCCESS,
     NO_CONNECTED_USER,
@@ -23,6 +26,15 @@ import {
     DELETE_GROUP,
     DELETE_GROUP_SUCCESS,
     DELETE_GROUP_FAILURE,
+    LEAVE_GROUP,
+    LEAVE_GROUP_SUCCESS,
+    LEAVE_GROUP_FAILURE,
+    FETCH_LEFT_USER_GROUPS,
+    FETCH_LEFT_USER_GROUPS_SUCCESS,
+    FETCH_LEFT_USER_GROUPS_FAILURE,
+    JOIN_GROUP,
+    JOIN_GROUP_SUCCESS,
+    JOIN_GROUP_FAILURE,
 } from '../actions/groups'
 import {
     FETCH_PREDICTIONS,
@@ -36,6 +48,9 @@ import {
     FETCH_GROUP_RANKING,
     FETCH_GROUP_RANKING_SUCCESS,
     FETCH_GROUP_RANKING_FAILURE,
+    FETCH_GROUPS_RANKING,
+    FETCH_GROUPS_RANKING_SUCCESS,
+    FETCH_GROUPS_RANKING_FAILURE,
 } from '../actions/ranking'
 
 const initialState = 0
@@ -46,20 +61,27 @@ export default function (state = initialState, action) {
 
         case FETCH_CURRENT_USER:
         case UPDATE_PROFILE:
+        case DELETE_ACCOUNT:
         case FETCH_USER_GROUPS:
         case FETCH_GROUP:
         case FETCH_GROUP_USERS:
         case UPSERT_GROUP:
         case DELETE_GROUP:
+        case LEAVE_GROUP:
+        case FETCH_LEFT_USER_GROUPS:
+        case JOIN_GROUP:
         case FETCH_PREDICTIONS:
         case SAVE_PREDICTION:
         case FETCH_GROUP_RANKING:
+        case FETCH_GROUPS_RANKING:
             return state + 1
 
         case FETCH_CURRENT_USER_SUCCESS:
         case NO_CONNECTED_USER:
         case UPDATE_PROFILE_SUCCESS:
         case UPDATE_PROFILE_FAILURE:
+        case DELETE_ACCOUNT_SUCCESS:
+        case DELETE_ACCOUNT_FAILURE:
         case FETCH_USER_GROUPS_SUCCESS:
         case FETCH_USER_GROUPS_FAILURE:
         case FETCH_GROUP_SUCCESS:
@@ -70,12 +92,20 @@ export default function (state = initialState, action) {
         case UPSERT_GROUP_FAILURE:
         case DELETE_GROUP_SUCCESS:
         case DELETE_GROUP_FAILURE:
+        case LEAVE_GROUP_SUCCESS:
+        case LEAVE_GROUP_FAILURE:
+        case FETCH_LEFT_USER_GROUPS_SUCCESS:
+        case FETCH_LEFT_USER_GROUPS_FAILURE:
+        case JOIN_GROUP_SUCCESS:
+        case JOIN_GROUP_FAILURE:
         case FETCH_PREDICTIONS_SUCCESS:
         case FETCH_PREDICTIONS_FAILURE:
         case SAVE_PREDICTION_SUCCESS:
         case SAVE_PREDICTION_FAILURE:
         case FETCH_GROUP_RANKING_SUCCESS:
         case FETCH_GROUP_RANKING_FAILURE:
+        case FETCH_GROUPS_RANKING_SUCCESS:
+        case FETCH_GROUPS_RANKING_FAILURE:
             return state - 1
 
         default:

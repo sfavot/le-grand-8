@@ -1,0 +1,15 @@
+{
+  "name": "huitparfait",
+  "private": true,
+  "description": "Le Grand 8 : pronostics foot entre amis (monorepo)",
+  "scripts": {
+    "test": "npm test --prefix huitparfait-api",
+    "lint": "npm run lint --prefix huitparfait-api && npm run lint --prefix huitparfait-auth"
+  },
+  "dependencies": {
+    "dotenv": "^8.6.0"
+  },
+  "devDependencies": {
+    "flag-icons": "^7.3.2"
+  }
+}

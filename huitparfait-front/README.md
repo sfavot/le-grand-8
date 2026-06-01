@@ -5,7 +5,7 @@
 ## Build Setup
 
 ``` bash
-# install dependencies
+# install dependencies (voir .npmrc : ignore-scripts pour e2e legacy)
 npm install
 
 # serve with hot reload at localhost:8080

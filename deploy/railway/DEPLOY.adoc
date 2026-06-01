@@ -1,0 +1,104 @@
+= Déploiement Railway + Neo4j Aura
+
+Guide pour héberger **Le Grand 8** sans Traefik : deux services Railway + base **Neo4j Aura**.
+
+== Architecture
+
+[source]
+----
+Navigateur → https://<domaine-web>  (service « web »)
+                 ├── /api/*  → proxy → service « api » (réseau privé)
+                 ├── /auth/* → Google OAuth (Bell)
+                 └── /*      → fichiers statiques (front Vue compilé)
+
+Service « api » → Neo4j Aura (neo4j+s://...)
+----
+
+| Service Railway | Dossier / image | Rôle |
+|-----------------|-----------------|------|
+| `web` | `Dockerfile.railway-web` (racine du repo) | Auth + front (URL publique) |
+| `api` | `huitparfait-api/Dockerfile` | REST + Neo4j (privé de préférence) |
+
+== 1. Neo4j Aura
+
+1. Créer une instance sur https://neo4j.com/cloud/aura/ (offre gratuite possible).
+2. Noter l'URI **Bolt** (`neo4j+s://…`), l'utilisateur (`neo4j`) et le mot de passe.
+3. Ouvrir **Neo4j Browser** ou **Query** dans la console Aura.
+4. Sur une base vide, coller et exécuter `huitparfait-data/init-data-2026wc.cql` (généré via `make data-wc2026-generate`).
+
+== 2. Clés JWT
+
+[source,bash]
+----
+make keys
+----
+
+Copier le contenu de `keys/jwt-public.pem` et `keys/jwt-private.pem` dans les variables Railway `JWT_PUBLIC_KEY` et `JWT_PRIVATE_KEY` (une ligne avec `\n`, ou coller le PEM multiligne selon l'UI Railway).
+
+Voir aussi `keys/README.md`.
+
+== 3. Projet Railway
+
+1. **New Project** → Deploy from GitHub repo.
+2. Ajouter le service **API** :
+   * Root Directory : `huitparfait-api`
+   * Builder : Dockerfile (`huitparfait-api/Dockerfile`)
+   * Variables : voir `deploy/railway/api.env.example` (dont `ADMIN_PASSWORD` pour `/admin`, distinct de `HTTP_SECRET`)
+   * Désactiver la **URL publique** si vous n'exposez l'API que via le réseau privé (recommandé).
+3. Ajouter le service **web** :
+   * Root Directory : **racine du dépôt** (vide ou `/`)
+   * Dockerfile path : `Dockerfile.railway-web`
+   * Optionnel : fichier `deploy/railway/railway.toml` pour healthcheck / watch paths
+   * Variables : voir `deploy/railway/web.env.example`
+   * `PROXY_API_URL` : `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}` (adapter `api` au nom du service API).
+   * **Important** : `${{api.PORT}}` dans une référence Railway n’est *pas* le `PORT` injecté au runtime. Il faut créer une variable `PORT` **sur le service api** (ex. `8080`, même valeur que celle affichée dans les logs API au démarrage). Sans cela, l’URL résolue se termine par `:` sans port → `ECONNREFUSED`.
+
+=== Réseau privé Railway
+
+Sur le service **web**, référencer l'API :
+
+[source]
+----
+PROXY_API_URL=http://${{huitparfait-api.RAILWAY_PRIVATE_DOMAIN}}:${{huitparfait-api.PORT}}
+----
+
+(Adapter `huitparfait-api` au nom exact du service dans votre projet.)
+
+== 4. Google OAuth
+
+1. https://console.cloud.google.com/apis/credentials
+2. Client OAuth Web :
+   * Authorized redirect URI : `https://<votre-domaine>/auth/google`
+3. Renseigner `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` sur le service **web** uniquement.
+
+== 5. Domaine et cookies
+
+* `SERVER_URL` et `CORS_ORIGIN` doivent être l'URL HTTPS publique du service **web** (ex. `https://huitparfait.up.railway.app` ou votre domaine).
+* `COOKIE_IS_SECURE=true` en production (obligatoire, validé au démarrage).
+
+== 6. Vérification
+
+* `GET https://<domaine>/health` → `{"status":"ok","service":"huitparfait-auth"}`
+* Page d'accueil + connexion Google
+* Après login : pronostics / groupes (données Aura importées)
+
+== 7. Mise à jour
+
+* Push sur la branche connectée → redéploiement automatique.
+* Données : réimporter le CQL sur Aura uniquement si vous réinitialisez la base.
+
+== Dépannage
+
+| Symptôme | Piste |
+|----------|-------|
+| 502 sur `/api` | `PROXY_API_URL`, réseau privé, service API démarré (`/health` en interne) |
+| Erreur config au boot | **web** : `COOKIE_SECRET` ≥ 32 car., `GOOGLE_*`, `COOKIE_IS_SECURE=true` ; **api** : `HTTP_SECRET`, `ADMIN_PASSWORD`, `NEO4J_*`, `JWT_PUBLIC_KEY` |
+| OAuth redirect mismatch | URI Google = `SERVER_URL` + `/auth/google` |
+| 500 après Google OAuth, `fetch failed` / `ECONNREFUSED` | `PROXY_API_URL` sur le service **web** pointe une mauvaise cible (souvent `localhost` copié depuis `.env`) ou l'API est arrêtée. Utiliser `http://${{nom-service-api.RAILWAY_PRIVATE_DOMAIN}}:${{nom-service-api.PORT}}`, vérifier les logs du service **api** (`/health`, Neo4j Aura). |
+| 500 après Google OAuth, `ERR_INVALID_URL` / `le-grand-8.railway.internal/...` | `PROXY_API_URL` doit commencer par `http://` (ou `https://`), inclure le *port* de l'API, et pointer le service **api** (pas le service web) : `http://${{huitparfait-api.RAILWAY_PRIVATE_DOMAIN}}:${{huitparfait-api.PORT}}` |
+| Neo4j connection | URI `neo4j+s://`, identifiants Aura, pare-feu IP si activé |
+| Front 404 sur `/classements` | `SERVE_STATIC_FRONT=true`, image web bien rebuild |
+
+== Alternative Docker (serveur perso)
+
+Les fichiers `docker-compose.yml` + Traefik restent utilisables ; remplacer `NEO4J_URI` par Aura et monter les secrets comme sur Railway.

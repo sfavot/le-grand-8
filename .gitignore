@@ -6,6 +6,12 @@ out
 # Node template
 node_modules
 
+# Secrets and local config
+keys/*.pem
+.env.local
+.env.*.local
+acme/
+
 # Data
 huitparfait-data/data
 

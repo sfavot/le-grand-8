@@ -1,34 +1,37 @@
 import Joi from 'joi'
-import { generateId } from '../infra/utils'
-import { cypher, cypherOne } from '../infra/neo4j'
-import { betterGroup } from '../services/groupService'
-import { generateName } from '../services/userService'
 import _ from 'lodash'
 import moment from 'moment'
+import { generateId } from '../infra/utils.js'
+import { cypher, cypherOne } from '../infra/neo4j.js'
+import { emptyIfDeleted } from '../infra/replyUtils.js'
+import { betterGroup } from '../services/groupService.js'
+import { generateName } from '../services/userService.js'
 
-exports.register = function (server, options, next) {
+const httpsUri = Joi.string().uri({ scheme: [/https/] }).allow('', null)
 
-    server.route([
+export const plugin = {
+    name: 'users-route',
+    register: async (server) => {
+        server.route([
         {
             method: 'POST',
             path: '/api/users/me',
-            config: {
+            options: {
                 auth: 'jwt-anonymous',
                 validate: {
                     payload: Joi.object({
                         email: Joi.string().email().required(),
                         name: Joi.string(),
-                        avatarUrl: Joi.string().uri({ scheme: 'https' }),
+                        avatarUrl: httpsUri,
                         oAuthId: Joi.string(),
                         oAuthProvider: Joi.string(),
                     }).required(),
                 },
-                handler(req, reply) {
-
+                handler: async (request, _h) => {
                     const userId = generateId()
                     const anonymousName = generateName(userId)
 
-                    cypherOne(`
+                    return cypherOne(`
                         MERGE         (u:User { email: {email} })
                         ON CREATE SET u.createdAt        = timestamp(),
                                       u.updatedAt        = timestamp(),
@@ -41,7 +44,10 @@ exports.register = function (server, options, next) {
                                       u.oAuthProvider    = {oAuthProvider},
                                       u.lastConnectionAt = timestamp(),
                                       u.isAnonymous      = false
-                        ON MATCH SET  u.lastConnectionAt = timestamp()
+                        ON MATCH SET  u.lastConnectionAt = timestamp(),
+                                      u.updatedAt        = timestamp(),
+                                      u.name             = coalesce({name}, u.name),
+                                      u.avatarUrl        = coalesce({avatarUrl}, u.avatarUrl)
                         RETURN        u.id            AS id,
                                       u.name          AS name,
                                       u.anonymousName AS anonymousName,
@@ -49,55 +55,49 @@ exports.register = function (server, options, next) {
                                       u.isAnonymous   AS isAnonymous`,
                         {
                             userId,
-                            email: req.payload.email,
-                            name: req.payload.name,
-                            oAuthId: req.payload.oAuthId,
-                            oAuthProvider: req.payload.oAuthProvider,
+                            email: request.payload.email,
+                            name: request.payload.name ?? null,
+                            oAuthId: request.payload.oAuthId ?? null,
+                            oAuthProvider: request.payload.oAuthProvider ?? null,
                             anonymousName,
-                            avatarUrl: req.payload.avatarUrl || null,
+                            avatarUrl: request.payload.avatarUrl || null,
                         })
-                        .then(reply)
-                        .catch(reply)
                 },
             },
         },
         {
             method: 'GET',
             path: '/api/users/me',
-            config: {
+            options: {
                 description: 'Read user infos',
                 tags: ['api'],
-                handler(req, reply) {
-                    cypherOne(`
+                handler: async (request, _h) => cypherOne(`
                         MATCH (u:User { id: {id} })
                         RETURN u.id            AS id,
                                u.name          AS name,
+                               u.email         AS email,
                                u.anonymousName AS anonymousName,
                                u.avatarUrl     AS avatarUrl,
                                u.isAnonymous   AS isAnonymous`,
                         {
-                            id: req.auth.credentials.id,
-                        })
-                        .then(reply)
-                        .catch(reply)
-                },
+                            id: request.auth.credentials.id,
+                        }),
             },
         },
         {
             method: 'PUT',
             path: '/api/users/me',
-            config: {
+            options: {
                 description: 'Update user\'s infos',
                 tags: ['api'],
                 validate: {
-                    payload: {
+                    payload: Joi.object({
                         name: Joi.string(),
-                        avatarUrl: Joi.string().uri({ scheme: 'https' }),
+                        avatarUrl: httpsUri,
                         isAnonymous: Joi.boolean(),
-                    },
+                    }),
                 },
-                handler(req, reply) {
-                    cypherOne(`
+                handler: async (request, _h) => cypherOne(`
                         MATCH (u:User { id: {userId} })
                         SET u.updatedAt   = timestamp(),
                             u.name        = {userName},
@@ -105,28 +105,48 @@ exports.register = function (server, options, next) {
                             u.isAnonymous = {userIsAnonymous}
                         RETURN u.id            AS id,
                                u.name          AS name,
+                               u.email         AS email,
                                u.anonymousName AS anonymousName,
                                u.avatarUrl     AS avatarUrl, 
                                u.isAnonymous   AS isAnonymous`,
                         {
-                            userId: req.auth.credentials.id,
-                            userName: req.payload.name,
-                            userAvatarUrl: req.payload.avatarUrl || null,
-                            userIsAnonymous: req.payload.isAnonymous,
+                            userId: request.auth.credentials.id,
+                            userName: request.payload.name ?? null,
+                            userAvatarUrl: request.payload.avatarUrl || null,
+                            userIsAnonymous: request.payload.isAnonymous ?? null,
                         })
-                        .then(reply)
-                        .catch(reply)
+            },
+        },
+        {
+            method: 'DELETE',
+            path: '/api/users/me',
+            options: {
+                description: 'Delete current user account and related data',
+                tags: ['api'],
+                handler: async (request, h) => {
+                    const result = await cypherOne(`
+                        MATCH (u:User { id: {userId} })
+                        WITH u, 1 AS deleteCount
+                        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)
+                        DETACH DELETE p
+                        WITH DISTINCT u, deleteCount
+                        DETACH DELETE u
+                        RETURN deleteCount`,
+                        {
+                            userId: request.auth.credentials.id,
+                        })
+                    return emptyIfDeleted(result, h)
                 },
             },
         },
         {
             method: 'GET',
             path: '/api/users/me/groups',
-            config: {
+            options: {
                 description: 'Read user\'s groups',
                 tags: ['api'],
-                handler(req, reply) {
-                    cypher(`
+                handler: async (request, _h) => {
+                    const groups = await cypher(`
                         MATCH    (:User { id:{id} })-[imog:IS_MEMBER_OF_GROUP { isActive: true }]->(g:Group)
                         MATCH    (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
                         RETURN   g.name               AS name,
@@ -136,22 +156,44 @@ exports.register = function (server, options, next) {
                                  count(DISTINCT u.id) AS userCount
                         ORDER BY lower(g.name)`,
                         {
-                            id: req.auth.credentials.id,
+                            id: request.auth.credentials.id,
                         })
-                        .map(betterGroup)
-                        .then(reply)
-                        .catch(reply)
+                    return groups.map(betterGroup)
+                },
+            },
+        },
+        {
+            method: 'GET',
+            path: '/api/users/me/groups/left',
+            options: {
+                description: 'Read groups the user has left',
+                tags: ['api'],
+                handler: async (request, _h) => {
+                    const groups = await cypher(`
+                        MATCH    (:User { id:{id} })-[imog:IS_MEMBER_OF_GROUP]->(g:Group)
+                        WHERE    imog.isActive = false AND coalesce(imog.isExcluded, false) = false
+                        MATCH    (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
+                        RETURN   g.name               AS name,
+                                 g.avatarUrl          AS avatarUrl,
+                                 g.id                 AS id,
+                                 imog.isAdmin         AS isAdmin,
+                                 count(DISTINCT u.id) AS userCount
+                        ORDER BY lower(g.name)`,
+                        {
+                            id: request.auth.credentials.id,
+                        })
+                    return groups.map(betterGroup)
                 },
             },
         },
         {
             method: 'GET',
             path: '/api/users/me/predictions/{period}',
-            config: {
+            options: {
                 description: 'List games',
                 tags: ['api'],
-                handler(req, reply) {
-                    cypher(`
+                handler: async (request, _h) => {
+                    const predictions = await cypher(`
                         MATCH          (g:Game)
                         MATCH          (ta:Team)-[piga:PLAYS_IN_GAME {order: 1}]->(g)
                         MATCH          (tb:Team)-[pigb:PLAYS_IN_GAME {order: 2}]->(g)
@@ -189,82 +231,75 @@ exports.register = function (server, options, next) {
                         ORDER BY g.startsAt
                         `,
                         {
-                            userId: req.auth.credentials.id,
+                            userId: request.auth.credentials.id,
                         })
-                        .then((predictions) => {
 
-                            const allDates = _(predictions)
-                                .map((game) => moment(game.startsAt).startOf('day').valueOf())
-                                .uniq()
-                                .value()
+                    const allDates = _(predictions)
+                        .map((game) => moment(game.startsAt).startOf('day').valueOf())
+                        .uniq()
+                        .value()
 
-                            const today = moment().startOf('day').valueOf()
-                            const nextDay = _(allDates).find((day) => day >= today)
-                            const previousDay = _(allDates).slice().reverse().find((day) => day < today)
+                    const today = moment().startOf('day').valueOf()
+                    const nextDay = _(allDates).find((day) => day >= today)
+                    const previousDay = _(allDates).slice().reverse().find((day) => day < today)
 
-                            return _(predictions)
-                                .filter((game) => {
+                    return _(predictions)
+                        .filter((game) => {
+                            const dayOfGame = moment(game.startsAt).startOf('day').valueOf()
 
-                                    const dayOfGame = moment(game.startsAt).startOf('day').valueOf()
+                            if (request.params.period === 'previous-days'
+                                || request.params.period === 'matchs-precedents') {
+                                return dayOfGame <= previousDay
+                            }
 
-                                    if (req.params.period === 'previous-days') {
-                                        return dayOfGame <= previousDay
-                                    }
+                            if (request.params.period === 'next-days'
+                                || request.params.period === 'prochains-matchs') {
+                                return dayOfGame >= nextDay
+                            }
 
-                                    if (req.params.period === 'next-days') {
-                                        return dayOfGame >= nextDay
-                                    }
-
-                                    return true
-                                })
-                                .thru((allPredictions) => {
-
-                                    if (req.params.period === 'previous-days') {
-                                        return _(allPredictions).slice().reverse().value()
-                                    }
-
-                                    return allPredictions
-                                })
-                                .map((game) => {
-
-                                    // Initialize amount of risked points to the maximum if not defined
-                                    game.predictionRiskAmount = game.predictionRiskAmount || 3
-
-                                    // Calculate the total number of points for a prediction
-                                    if (game.classicPoints != null) {
-                                        game.points = game.classicPoints + (game.riskPoints || 0)
-                                    }
-
-                                    return game
-                                })
-                                .groupBy((game) => {
-                                    return moment(game.startsAt).startOf('day')
-                                })
+                            return true
                         })
-                        .then(reply)
-                        .catch(reply)
+                        .thru((allPredictions) => {
+                            if (request.params.period === 'previous-days'
+                                || request.params.period === 'matchs-precedents') {
+                                return _(allPredictions).slice().reverse().value()
+                            }
+
+                            return allPredictions
+                        })
+                        .map((game) => {
+                            game.predictionRiskAmount = game.predictionRiskAmount || 3
+
+                            if (game.classicPoints != null) {
+                                game.points = game.classicPoints + (game.riskPoints || 0)
+                            }
+
+                            return game
+                        })
+                        .groupBy((game) => moment(game.startsAt).startOf('day').valueOf())
+                        .value()
                 },
             },
         },
         {
             method: 'POST',
             path: '/api/users/me/predictions',
-            config: {
+            options: {
                 description: 'Save a user\'s prediction about a game',
                 tags: ['api'],
                 validate: {
-                    payload: {
+                    payload: Joi.object({
                         gameId: Joi.string(),
                         predictionScoreTeamA: Joi.number().integer().min(0).required(),
                         predictionScoreTeamB: Joi.number().integer().min(0).required(),
                         predictionRiskAnswer: Joi.boolean(),
                         predictionRiskAmount: Joi.number().integer().min(0).max(3).required(),
-                    },
+                    }),
                 },
-                handler(req, reply) {
+                handler: async (request, _h) => {
                     const pronosticId = generateId()
 
-                    cypherOne(`
+                    return cypherOne(`
                         MATCH (u:User { id: {userId} })
                         MATCH (g:Game { id: {gameId} })
                         WHERE g.startsAt > timestamp()
@@ -292,25 +327,18 @@ exports.register = function (server, options, next) {
                         RETURN p
                         `,
                         {
-                            userId: req.auth.credentials.id,
-                            gameId: req.payload.gameId,
-                            predictionScoreTeamA: req.payload.predictionScoreTeamA,
-                            predictionScoreTeamB: req.payload.predictionScoreTeamB,
-                            predictionRiskAnswer: req.payload.predictionRiskAnswer != null ? req.payload.predictionRiskAnswer : null,
-                            predictionRiskAmount: req.payload.predictionRiskAmount,
+                            userId: request.auth.credentials.id,
+                            gameId: request.payload.gameId,
+                            predictionScoreTeamA: request.payload.predictionScoreTeamA,
+                            predictionScoreTeamB: request.payload.predictionScoreTeamB,
+                            predictionRiskAnswer: request.payload.predictionRiskAnswer != null
+                                ? request.payload.predictionRiskAnswer : null,
+                            predictionRiskAmount: request.payload.predictionRiskAmount,
                             pronosticId,
                         })
-                        .then(reply)
-                        .catch(reply)
                 },
             },
         },
-    ])
-
-    next()
-}
-
-
-exports.register.attributes = {
-    name: 'users-route',
+        ])
+    },
 }

@@ -1,0 +1,9 @@
+{
+  "cookie": {
+    "secret": "change-me-local-cookie-secret-32chars"
+  },
+  "google": {
+    "clientId": "your-google-client-id",
+    "clientSecret": "your-google-client-secret"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "httpSecret": "change-me-local-dev-only-min-32-chars",
+  "cookie": {
+    "secret": "change-me-local-cookie-secret-32chars"
+  },
+  "neo4j": {
+    "url": "http://neo4j:neo@localhost:7474"
+  }
+}

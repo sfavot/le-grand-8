@@ -1,70 +1,62 @@
 import Joi from 'joi'
-import { calculateRanking, fetchCommonRankingWithPaginate } from '../services/rankingService'
-import { calculatePronostic } from '../services/pronosticService'
+import { calculateGroupsRanking, calculateRanking, fetchCommonRankingWithPaginate } from '../services/rankingService.js'
 
-
-exports.register = function (server, options, next) {
-
-    server.route([
-        {
-            method: 'GET',
-            path: '/api/ranking/general',
-            config: {
-                description: 'Fetch common ranking',
-                tags: ['api'],
-                validate: {
-                    query: {
-                        page: Joi.number().integer().min(0),
-                        pageSize: Joi.number().integer().min(0).max(100),
-                    },
-                },
-                handler(req, reply) {
-                    fetchCommonRankingWithPaginate(req.query)
-                        .then(reply)
-                        .catch(reply)
-                },
-            },
-        },
-        {
-            method: 'GET',
-            path: '/api/ranking/{groupId}',
-            config: {
-                description: 'Fetch ranking',
-                tags: ['api'],
-                validate: {
-                    query: {
-                        page: Joi.number().integer().min(0),
-                        pageSize: Joi.number().integer().min(0),
-                    },
-                },
-                handler(req, reply) {
-                    calculateRanking({
-                        ...req.query,
-                        userId: req.auth.credentials.id,
-                        groupId: req.params.groupId,
-                    })
-                        .then(reply)
-                        .catch(reply)
-                },
-            },
-        },
-        {
-            method: 'GET',
-            path: '/api/ranking/calculate',
-            config: {
-                auth: 'http-basic',
-                handler(req, reply) {
-                    calculatePronostic()
-                        .then(reply)
-                        .catch(reply)
-                },
-            },
-        },
-    ])
-
-    next()
-}
-
-exports.register.attributes = {
+export const plugin = {
     name: 'ranking-route',
+    register: async (server) => {
+        server.route([
+            {
+                method: 'GET',
+                path: '/api/ranking/general',
+                options: {
+                    description: 'Fetch common ranking',
+                    tags: ['api'],
+                    validate: {
+                        query: Joi.object({
+                            page: Joi.number().integer().min(0),
+                            pageSize: Joi.number().integer().min(0).max(100),
+                        }),
+                    },
+                    handler: async (request, _h) => fetchCommonRankingWithPaginate(request.query),
+                },
+            },
+            {
+                method: 'GET',
+                path: '/api/ranking/groups',
+                options: {
+                    description: 'Fetch groups ranking (average member score)',
+                    tags: ['api'],
+                    validate: {
+                        query: Joi.object({
+                            page: Joi.number().integer().min(0),
+                            pageSize: Joi.number().integer().min(0).max(100),
+                        }),
+                    },
+                    handler: async (request, _h) => calculateGroupsRanking({
+                        ...request.query,
+                        userId: request.auth.credentials.id,
+                    }),
+                },
+            },
+            {
+                method: 'GET',
+                path: '/api/ranking/{groupId}',
+                options: {
+                    description: 'Fetch ranking',
+                    tags: ['api'],
+                    validate: {
+                        query: Joi.object({
+                            page: Joi.number().integer().min(0),
+                            pageSize: Joi.number().integer().min(0),
+                        }),
+                    },
+                    handler: async (request, _h) => calculateRanking({
+                        ...request.query,
+                        userId: request.auth.credentials.id,
+                        groupId: request.params.groupId,
+                    }),
+                },
+            },
+        ])
+    },
 }

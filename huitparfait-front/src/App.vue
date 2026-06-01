@@ -30,7 +30,7 @@
     .main {
         box-sizing: border-box;
         margin: 0 auto;
-        padding: 32px 0 72px 0;
+        padding: 48px 0 72px 0;
         max-width: 1400px;
         width: 100%;
     }
@@ -41,17 +41,17 @@
 
     @media (min-width: 500px) {
         .main {
-            padding: 47px 7px 72px 7px;
+            padding: 68px 7px 72px 7px;
         }
     }
 
     @media (min-width: 850px) {
         .main {
-            padding: 67px 5px 0 255px;
+            padding: 90px 5px 0 255px;
         }
 
         .main.isDisconnected {
-            padding: 67px 7px 0 7px;
+            padding: 90px 7px 0 7px;
         }
     }
 
@@ -59,8 +59,8 @@
         background-color: #4db788;
         border-bottom: 2px solid #49996f;
         box-sizing: border-box;
-        height: 30px;
-        line-height: 30px;
+        height: 44px;
+        line-height: 44px;
         font-size: 20px;
         left: 0;
         position: fixed;
@@ -72,8 +72,8 @@
 
     @media (min-width: 850px) {
         .titlebar {
-            height: 50px;
-            line-height: 80px;
+            height: 56px;
+            line-height: 56px;
         }
 
         .titlebar.isDisconnected {
@@ -138,9 +138,13 @@
         .menubar {
             border-top-style: none;
             border-top-width: 0;
-            flex-direction: column;
-            height: auto;
-            top: 67px;
+            bottom: auto;
+            height: calc(100vh - 90px);
+            max-height: calc(100vh - 90px);
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            top: 90px;
             width: 250px;
         }
     }

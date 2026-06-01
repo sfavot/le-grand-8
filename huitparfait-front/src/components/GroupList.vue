@@ -9,7 +9,17 @@
         </card>
 
         <card-list>
-            <group v-for="group in simpleGroups" :group="group" link="groupRanking" track-by="id"></group>
+            <group v-for="group in simpleGroups" :group="group" mode="leave" link="groupRanking" track-by="id"></group>
+        </card-list>
+
+        <card-title v-if="leftGroups != null && leftGroups.length > 0">Groupes que vous avez quittés ({{ leftGroups.length }})&nbsp;:</card-title>
+
+        <card v-if="leftGroups != null && leftGroups.length > 0">
+            <p>Vous pouvez réintégrer un groupe pour retrouver le classement et pronostiquer à nouveau.</p>
+        </card>
+
+        <card-list>
+            <group v-for="group in leftGroups" :group="group" mode="rejoin" track-by="id"></group>
         </card-list>
 
         <card-title v-if="adminGroups != null && adminGroups.length > 0">Vous administrez {{ adminGroups.length }} groupe(s)&nbsp;:</card-title>
@@ -21,12 +31,12 @@
             </p>
         </card>
 
-        <card v-if="groups != null && groups.length === 0">
+        <card v-if="hasNoGroups">
             <p>Vous n'êtes membre d'aucun groupe.</p>
             <p>Si vos amis ont déjà créé un groupe, demandez leur le lien d'invitation pour rejoindre le groupe et pour
                 pronostiquer avec eux !</p>
             <p>
-                Si vous êtes le premier de vos amis à s'inscrire sur Huit Parfait, utilisez le formulaire ci-dessous pour
+                Si vous êtes le premier de vos amis à s'inscrire sur Le Grand 8, utilisez le formulaire ci-dessous pour
                 créer des groupes pour vos amis, famille, collègues...
                 Vous obtiendrez ensuite un lien d'invitation à leur partager pour qu'il rejoigne votre groupe.
             </p>
@@ -63,7 +73,7 @@
 
     import Group from './Group'
     import store from '../state/configureStore'
-    import { fetchUserGroups, upsertGroup } from '../state/actions/groups'
+    import { fetchUserGroups, fetchLeftUserGroups, upsertGroup } from '../state/actions/groups'
     import shortid from 'shortid'
     import _ from 'lodash'
 
@@ -82,6 +92,7 @@
         data() {
             return {
                 groups: this.$select('groups'),
+                leftGroups: this.$select('leftGroups'),
                 newGroup: getNewGroup(),
                 createGroupInPogress: false,
             }
@@ -89,6 +100,7 @@
         route: {
             data() {
                 store.dispatch(fetchUserGroups())
+                store.dispatch(fetchLeftUserGroups())
             },
         },
         computed: {
@@ -97,6 +109,12 @@
             },
             adminGroups() {
                 return _.filter(this.groups, (group) => group.isAdmin)
+            },
+            hasNoGroups() {
+                return this.groups != null
+                    && this.groups.length === 0
+                    && this.leftGroups != null
+                    && this.leftGroups.length === 0
             },
         },
         methods: {

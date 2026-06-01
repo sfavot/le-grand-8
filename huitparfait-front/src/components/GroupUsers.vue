@@ -16,6 +16,10 @@
                     <input v-model="groupEdit.avatarUrl" type="text" class="input"
                             placeholder="https://les-super-logos.com/monimage.jpg">
                 </label>
+                <label v-if="group.isAdmin" class="inputLabel checkboxLabel">
+                    <input v-model="groupEdit.excludeFromGroupsRanking" type="checkbox">
+                    Exclure ce groupe du classement inter-groupes
+                </label>
                 <div class="btnBar">
                     <btn :disabled="updateGroupInPogress">Mettre à jour le groupe</btn>
                 </div>
@@ -23,7 +27,7 @@
         </card>
 
         <card v-if="group != null">
-            Lien d'invitation à partager avec vos amis :
+            Lien d'invitation à partager avec vos amis (toute personne qui a ce lien peut rejoindre le groupe) :
             <a v-link="{ name: 'groupJoin', params: { groupId: group.id, groupName: group.slug } }">{{ joinUrl }}</a>
         </card>
 
@@ -75,6 +79,7 @@
                 this.groupEdit = {
                     name: group.name,
                     avatarUrl: group.avatarUrl,
+                    excludeFromGroupsRanking: group.excludeFromGroupsRanking === true,
                 }
             },
         },
@@ -143,6 +148,14 @@
     .btnBar {
         text-align: right;
         margin-top: 20px;
+    }
+
+    .checkboxLabel {
+        font-style: normal;
+    }
+
+    .checkboxLabel input {
+        margin-right: 8px;
     }
 
 </style>

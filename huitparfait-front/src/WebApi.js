@@ -11,8 +11,16 @@ export function updateProfile(profile) {
     return execute('/users/me', { method: 'PUT', body: profile })
 }
 
+export function deleteAccount() {
+    return execute('/users/me', { method: 'DELETE' })
+}
+
 export function fetchUserGroups() {
     return execute('/users/me/groups')
+}
+
+export function fetchLeftUserGroups() {
+    return execute('/users/me/groups/left')
 }
 
 export function fetchGroup(groupId) {
@@ -27,12 +35,20 @@ export function fetchGroupRanking(groupId, page = 1) {
     return execute(`/ranking/${groupId}?page=${page}`)
 }
 
-export function upsertGroup({ id, name, avatarUrl }) {
+export function fetchGroupsRanking(page = 1) {
+    return execute(`/ranking/groups?page=${page}`)
+}
+
+export function upsertGroup({ id, name, avatarUrl, excludeFromGroupsRanking }) {
 
     const body = { name }
 
     if (_.startsWith(avatarUrl, 'https://')) {
         body.avatarUrl = avatarUrl
+    }
+
+    if (excludeFromGroupsRanking != null) {
+        body.excludeFromGroupsRanking = excludeFromGroupsRanking
     }
 
     return execute(`/groups/${id}`, { method: 'PUT', body })
@@ -52,6 +68,10 @@ export function toggleGroupMembership(groupId, userId, isActive) {
 
 export function joinGroup(groupId) {
     return execute(`/groups/${groupId}/users`, { method: 'POST' })
+}
+
+export function leaveGroup(groupId) {
+    return execute(`/groups/${groupId}/users/me`, { method: 'DELETE' })
 }
 
 export function fetchRanking() {

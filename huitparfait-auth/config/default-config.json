@@ -1,11 +1,7 @@
 {
   "env": {
     "doc": "The applicaton environment.",
-    "format": [
-      "production",
-      "development",
-      "test"
-    ],
+    "format": ["production", "development", "test"],
     "default": "development",
     "env": "NODE_ENV"
   },
@@ -13,30 +9,44 @@
   "server": {
     "url": {
       "doc": "Server url",
-      "format": "url",
       "default": "http://localhost:3000",
       "env": "SERVER_URL"
     },
     "port": {
       "doc": "Port to bind",
-      "format": "port",
+      "format": "int",
       "default": 3000,
       "env": "SERVER_PORT"
     }
   },
 
+  "cors": {
+    "origin": {
+      "doc": "Comma-separated allowed CORS origins",
+      "default": "http://localhost:8081",
+      "env": "CORS_ORIGIN"
+    }
+  },
+
   "cookie": {
     "secret": {
-      "default": "81b02282-e5d5-464c-9d1b-b11eb8276bb2",
+      "doc": "Cookie encryption secret. Required in production.",
+      "default": "",
       "env": "COOKIE_SECRET"
     },
     "isSecure": {
       "default": false,
       "env": "COOKIE_IS_SECURE"
     },
+    "isSameSite": {
+      "default": "Lax",
+      "env": "COOKIE_SAME_SITE"
+    },
     "ttl": {
-      "format": "duration",
-      "default": "30 days"
+      "doc": "Cookie TTL in milliseconds (30 days)",
+      "format": "int",
+      "default": 2592000000,
+      "env": "COOKIE_TTL"
     }
   },
 
@@ -59,39 +69,23 @@
     "frontUrl": {
       "default": "http://localhost:8081",
       "env": "PROXY_FRONT_URL"
+    },
+    "serveStaticFront": {
+      "doc": "Sert le front compilé depuis public/ (Railway, Docker prod)",
+      "format": "Boolean",
+      "default": false,
+      "env": "SERVE_STATIC_FRONT"
     }
   },
 
   "google": {
     "clientId": {
-      "default": "foobar",
+      "default": "",
       "env": "GOOGLE_CLIENT_ID"
     },
     "clientSecret": {
-      "default": "foobar",
+      "default": "",
       "env": "GOOGLE_CLIENT_SECRET"
-    }
-  },
-
-  "facebook": {
-    "clientId": {
-      "default": "foobar",
-      "env": "FACEBOOK_CLIENT_ID"
-    },
-    "clientSecret": {
-      "default": "foobar",
-      "env": "FACEBOOK_CLIENT_SECRET"
-    }
-  },
-
-  "yahoo": {
-    "clientId": {
-      "default": "foobar",
-      "env": "YAHOO_CLIENT_ID"
-    },
-    "clientSecret": {
-      "default": "foobar",
-      "env": "YAHOO_CLIENT_SECRET"
     }
   }
 }

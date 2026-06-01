@@ -1,91 +1,84 @@
-/* eslint no-unused-vars: 0 */
-import B from 'bluebird'
-import neo4j from 'neo4j'
+import neo4j from 'neo4j-driver'
 import _ from 'lodash'
-import Config from './config'
-import { notFound } from 'boom'
-import Joi from 'joi'
+import Boom from '@hapi/boom'
+import Config from './config.js'
 
-const db = new neo4j.GraphDatabase(Config.get('neo4j.url'))
-const dbCypherAsync = B.promisify(db.cypher, { context: db })
+let driver
 
+function getDriver() {
+    if (driver == null) {
+        const uri = Config.get('neo4j.uri')
+        const username = Config.get('neo4j.username')
+        const password = Config.get('neo4j.password')
 
-// initialize({
-//     User: {
-//         id: { unique: true },
-//         email: { index: true },
-//     },
-//     Group: {
-//         id: { unique: true },
-//     },
-//     Team: {
-//         id: { unique: true },
-//     },
-//     Risk: {
-//         id: { unique: true },
-//     },
-//     Game: {
-//         id: { unique: true },
-//     },
-//     Pronostic: {
-//         id: { unique: true },
-//     },
-// })
+        const auth = username != null && username !== ''
+            ? neo4j.auth.basic(username, password)
+            : neo4j.auth.basic('neo4j', password || 'neo4j')
 
+        driver = neo4j.driver(uri, auth)
+    }
 
-export function cypher(fatQuery, params) {
-
-    // Our queries have a lot of spaces and line feeds for readability.
-    // To simplify errors messages from neo, we send it one-line queries ;-)
-    const query = fatQuery.replace(/\s+/g, ' ')
-
-    return dbCypherAsync({ query, params }).map(omitNull)
+    return driver
 }
 
-export function cypherOne(fatQuery, params) {
-    return cypher(fatQuery, params).then((results) => {
-        if (results != null && results.length === 1) {
-            return results[0]
+function recordToObject(record) {
+    const item = {}
+
+    record.keys.forEach((key) => {
+        let value = record.get(key)
+
+        if (neo4j.isInt(value)) {
+            value = value.toNumber()
         }
 
-        throw new notFound('Not unique result')
+        item[key] = value
     })
+
+    return omitNull(item)
 }
 
+/** Ancien client Neo4j 2.x : `{email}` / `{ email }` → driver Neo4j 5 : `$email` */
+export function toDriverCypher(fatQuery) {
+    return fatQuery
+        .replace(/\s+/g, ' ')
+        .replace(/\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}/g, '$$$1')
+}
+
+/** Le driver Neo4j 5 refuse les paramètres `undefined` (seul `null` est accepté). */
+export function sanitizeParams(params = {}) {
+    return _.mapValues(params, (value) => (value === undefined ? null : value))
+}
+
+export async function cypher(fatQuery, params = {}) {
+    const query = toDriverCypher(fatQuery)
+    const session = getDriver().session()
+
+    try {
+        const result = await session.run(query, sanitizeParams(params))
+
+        return result.records.map(recordToObject)
+    } finally {
+        await session.close()
+    }
+}
+
+export async function cypherOne(fatQuery, params = {}) {
+    const results = await cypher(fatQuery, params)
+
+    if (results != null && results.length === 1) {
+        return results[0]
+    }
+
+    throw Boom.notFound('Not unique result')
+}
+
+export async function closeDriver() {
+    if (driver != null) {
+        await driver.close()
+        driver = null
+    }
+}
 
 function omitNull(item) {
     return _.omitBy(item, _.isNil)
-}
-
-
-function initialize(opts) {
-
-    return B
-        .reduce(Object.keys(opts), (result, nodeName) => {
-            return B
-                .map(Object.keys(opts[nodeName]), (propertyName) => {
-                    return indexQueryByProperty(nodeName, propertyName)
-                })
-                .then((queries) => {
-                    return result.concat(queries)
-                })
-        }, [])
-        .filter((query) => query != null)
-        .mapSeries((query) => cypher(query))
-
-
-    function indexQueryByProperty(nodeName, propertyName) {
-        const propOpts = Joi.attempt(opts[nodeName][propertyName], Joi.object({
-            unique: Joi.boolean().default(false),
-            index: Joi.boolean().default(false).when('unique', { is: false, then: Joi.valid(true).required() }),
-        }))
-
-        if (propOpts.unique) {
-            return `CREATE CONSTRAINT ON (n:${nodeName}) ASSERT n.${propertyName} IS UNIQUE`
-        }
-
-        if (propOpts.index) {
-            return `CREATE INDEX ON :${nodeName}(${propertyName})`
-        }
-    }
 }

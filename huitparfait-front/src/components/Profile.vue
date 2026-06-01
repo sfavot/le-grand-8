@@ -33,6 +33,20 @@
                 </div>
             </card>
         </form>
+
+        <card-title>Suppression du compte :</card-title>
+
+        <card class="dangerZone">
+            <p>
+                La suppression de votre compte est définitive. Vos pronostics et vos adhésions aux groupes
+                seront supprimés.
+            </p>
+            <div class="btnBar">
+                <btn class="deleteAccountBtn" :disabled="deleteAccountInProgress" @click="deleteAccount">
+                    Supprimer mon compte
+                </btn>
+            </div>
+        </card>
     </div>
 
 </template>
@@ -41,7 +55,7 @@
 
     import User from './User'
     import store from '../state/configureStore'
-    import { fetchCurrentUser, updateProfile } from '../state/actions/user'
+    import { deleteAccount, fetchCurrentUser, updateProfile } from '../state/actions/user'
 
     export default {
         components: {
@@ -51,6 +65,7 @@
             return {
                 user: this.$select('user'),
                 profile: null,
+                deleteAccountInProgress: false,
             }
         },
         route: {
@@ -85,6 +100,23 @@
                         .catch(() => {
                             this.updateGroupInPogress = false
                         })
+            },
+            deleteAccount() {
+
+                // eslint-disable-next-line no-alert
+                if (!window.confirm(
+                    'Êtes-vous certain de vouloir supprimer définitivement votre compte ? '
+                    + 'Cette action est irréversible.',
+                )) {
+                    return
+                }
+
+                this.deleteAccountInProgress = true
+
+                store.dispatch(deleteAccount())
+                    .catch(() => {
+                        this.deleteAccountInProgress = false
+                    })
             },
         },
     }
@@ -125,6 +157,18 @@
         text-align: right;
         margin-top: 20px;
         text-align: right;
+    }
+
+    .dangerZone p {
+        color: #777;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .deleteAccountBtn {
+        background-color: #f5d5d5;
+        box-shadow: 0 2px 0 #a94442;
+        color: #8b2e2e;
     }
 
 </style>

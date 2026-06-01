@@ -1,0 +1,16 @@
+# Service « web » (auth + front statique).
+# Railway : Root Directory = racine du repo, Dockerfile path = Dockerfile.railway-web
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.railway-web"
+watchPatterns = [
+  "huitparfait-auth/**",
+  "huitparfait-front/**",
+  "Dockerfile.railway-web",
+]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"

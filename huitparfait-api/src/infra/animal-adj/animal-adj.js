@@ -1,3 +1,7 @@
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+
 export default function (lang) {
 
     const data = require(`./animal-adj-data.${lang}.json`)
@@ -18,11 +22,16 @@ export default function (lang) {
         const integer = reallyBigInteger % totalLength
 
         const animalIndex = Math.floor(integer / animalLength)
-        const animal = data.animals[animalIndex]
-
         const adjectiveIndex = integer % adjectivesLength
-        const adjective = data.adjectives[adjectiveIndex]
 
-        return ucfirst(`${animal.name} ${adjective[animal.genre]}`)
+        const animal = data.animals[animalIndex]
+        const adjectiveEntry = data.adjectives[adjectiveIndex]
+        const genre = animal.genre === 'f' ? 'f' : 'm'
+        const adjective = typeof adjectiveEntry === 'string'
+            ? adjectiveEntry
+            : adjectiveEntry[genre]
+        const animalName = typeof animal === 'string' ? animal : animal.name
+
+        return `${ucfirst(adjective)} ${ucfirst(animalName)}`
     }
 }

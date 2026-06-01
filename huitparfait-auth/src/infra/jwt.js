@@ -1,12 +1,18 @@
 import JWT from 'jsonwebtoken'
-import Config from './config'
-import fs from 'fs'
+import { loadJwtPrivateKey } from './jwt-keys.js'
 
-const JWT_PRIVATE_KEY_PATH = Config.get('jwt.privateKeyPath')
-const JWT_PRIVATE_KEY = fs.readFileSync(JWT_PRIVATE_KEY_PATH, 'utf8')
+let jwtPrivateKey
+
+function getPrivateKey() {
+    if (!jwtPrivateKey) {
+        jwtPrivateKey = loadJwtPrivateKey()
+    }
+
+    return jwtPrivateKey
+}
 
 export function sign(object, expiresIn = '1d') {
-    return JWT.sign(object, JWT_PRIVATE_KEY, {
+    return JWT.sign(object, getPrivateKey(), {
         expiresIn,
         algorithm: 'RS256',
     })

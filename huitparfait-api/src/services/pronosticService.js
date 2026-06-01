@@ -1,30 +1,23 @@
 import _ from 'lodash'
-import B from 'bluebird'
-import { cypher } from '../infra/neo4j'
-import { calculateClassicPoints, calculateRiskPoints } from './calculatePoints'
-import { fetchCommonRankingByCache } from './rankingService'
+import { cypher } from '../infra/neo4j.js'
+import { calculateClassicPoints, calculateRiskPoints } from './calculatePoints.js'
+import { fetchCommonRankingByCache } from './rankingService.js'
 
 export function calculatePronostic() {
     return fetchGames()
-        .then((games) => {
-
-            return fetchPronosticByGames(games).then((pronostics) => {
-
-                return calculateClassicPointsByPronostic(games, pronostics)
-            })
-
-        })
+        .then((games) => fetchPronosticByGames(games).then((pronostics) => {
+            return calculateClassicPointsByPronostic(games, pronostics)
+        }))
         .then(savePoints)
+        .then((result) => fetchCommonRankingByCache({ forceUpdate: true }).then(() => result))
         .then((result) => {
-            return fetchCommonRankingByCache({ forceUpdate: true }).return(result)
-        })
-        .tap(() => {
             console.log('Calculate Points OK')
+            return result
         })
         .catch((err) => {
             console.error('Error calculate ranking', err)
+            throw err
         })
-
 }
 
 
@@ -47,7 +40,7 @@ function fetchGames() {
 function fetchPronosticByGames(games) {
     console.log(`Fetch Pronostic By Games: ${games.length}`)
     if (_.isEmpty(games)) {
-        return B.resolve()
+        return Promise.resolve()
     }
 
     const gameIds = _.map(games, 'gameId')
@@ -75,7 +68,7 @@ function fetchPronosticByGames(games) {
                pr.amount as amount,
                ug.happened as happened`,
         {
-            gameIds: gameIds,
+            gameIds,
         })
 }
 
@@ -83,7 +76,7 @@ function savePoints(pronostics) {
     console.log(`Save Points: Pronostics: ${pronostics.length}`)
 
     if (_.isEmpty(pronostics)) {
-        return B.resolve([])
+        return Promise.resolve([])
     }
 
     return cypher(`
@@ -94,22 +87,23 @@ function savePoints(pronostics) {
                p.riskPoints = pronostic.riskPoints
         )`,
         {
-            pronostics: pronostics,
-        })
-        .return(pronostics)
+            pronostics,
+        }).then(() => pronostics)
 }
 
 function calculateClassicPointsByPronostic(games = [], pronostics = []) {
     console.log(`Calcul classic points by pronostics: Games: ${games.length}, Pronostics: ${pronostics.length}`)
     const gamesById = _.keyBy(games, 'gameId')
 
-    return B
-        .filter(pronostics, pronosticIsValid)
-        .map((pronostic) => {
-            const currentGame = gamesById[pronostic.gameId]
-
-            return calculatePointsByPronostic(pronostic, currentGame)
-        })
+    return Promise.all(
+        pronostics
+            .filter(pronosticIsValid)
+            .map((pronostic) => {
+                const currentGame = gamesById[pronostic.gameId]
+                return calculatePointsByPronostic(pronostic, currentGame)
+            })
+            .filter(Boolean)
+    )
 
     function pronosticIsValid(pronostic) {
         return pronostic.pronosticId != null && pronostic.gameId != null && gamesById[pronostic.gameId] != null
@@ -122,6 +116,7 @@ function calculateClassicPointsByPronostic(games = [], pronostics = []) {
             return pronostic
         } catch (err) {
             console.log(`Error calcul pronostic with ${JSON.stringify(pronostic)}`, err)
+            return null
         }
     }
 }

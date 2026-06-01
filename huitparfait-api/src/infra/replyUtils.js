@@ -1,22 +1,13 @@
-import { notFound } from 'boom'
+import Boom from '@hapi/boom'
 
-export function sendCreated(reply, locationPrefix) {
-    return (result) => {
-        reply().created(`${locationPrefix}${result.id}`)
-    }
+export function emptyResponse(h) {
+    return h.response().code(204)
 }
 
-export function sendEmpty(reply) {
-    return () => {
-        reply().code(204)
+export async function emptyIfDeleted(result, h) {
+    if (result.deleteCount === 1) {
+        return h.response().code(204)
     }
-}
 
-export function sendEmptyIfPositiveDeleteCount(reply) {
-    return (result) => {
-        if (result.deleteCount === 1) {
-            return reply().code(204)
-        }
-        reply(notFound())
-    }
+    throw Boom.notFound()
 }

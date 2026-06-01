@@ -155,7 +155,7 @@ CREATE(_Risk26:Risk { id: "H1-PSUjVL7", text: "Les prolongations sont jouées" }
 CREATE(_Risk27:Risk { id: "rJMPrIi4Um", text: "Plus de fautes commises par l'équipe vainqueur" })
 CREATE(_Risk28:Risk { id: "H1mvSLjV8X", text: "Plus de fautes commises par l'équipe perdante" })
 CREATE(_Risk29:Risk { id: "S1NDrIsEIm", text: "Le joueur du match est dans l'équipe vainqueur" })
-CREATE(_Risk30:Risk { id: "HJSwrIs48X", text: "Le joueur du match est dans l'équipe perdrante" })
+CREATE(_Risk30:Risk { id: "HJSwrIs48X", text: "Le joueur du match est dans l'équipe perdante" })
 CREATE(_Risk31:Risk { id: "ryV_HLjNUQ", text: "But d'un joueur ayant moins de 25 ans (prolongations incluses, hors tirs aux buts)" })
 CREATE(_Risk32:Risk { id: "r1m_H8oE8X", text: "But d'un joueur ayant 27 ans ou plus (prolongations incluses, hors tirs aux buts)" })
 CREATE(_Risk33:Risk { id: "ryx_NNj4Im", text: "Chaque équipe marque au moins un but (prolongations incluses, hors tirs aux buts)" })

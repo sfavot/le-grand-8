@@ -1,7 +1,7 @@
-var merge = require('webpack-merge')
-var prodEnv = require('./prod.env')
+// URL relative : même origine sur :3000 (recommandé) ou :8081 (avec proxyTable)
+var apiUrl = process.env.API_URL || '/api'
 
-module.exports = merge(prodEnv, {
+module.exports = {
   NODE_ENV: '"development"',
-  API_URL: '"http://localhost:3000/api"'
-})
+  API_URL: JSON.stringify(apiUrl),
+}

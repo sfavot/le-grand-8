@@ -1,10 +1,8 @@
-version: '2'
-
 services:
 
     traefik:
         image: containous/traefik:pr-433
-        command: --web --docker --docker.domain=huitparfait.fr --logLevel=DEBUG
+        command: --web --docker --docker.domain=localhost --logLevel=DEBUG
         restart: always
         ports:
             - "80:80"
@@ -22,44 +20,38 @@ services:
             - "traefik.backend=huitparfait-front"
             - "traefik.protocol=http"
             - "traefik.port=80"
-            - "traefik.frontend.rule=Host:huitparfait.fr"
+            - "traefik.frontend.rule=Host:localhost"
 
     huitparfait-auth:
         build: ./huitparfait-auth
         image: huitparfait/huitparfait-auth
         restart: always
+        env_file:
+            - .env
+            - .env.local
         volumes:
             - ./keys:/jwt-keys
         environment:
             NODE_ENV: production
-            SERVER_URL: http://localhost:3000
-            SERVER_PORT: 3000
-            PROXY_API_URL: http://huitparfait-api:3000
             JWT_PUBLIC_KEY_PATH: /jwt-keys/jwt-public.pem
             JWT_PRIVATE_KEY_PATH: /jwt-keys/jwt-private.pem
-            FACEBOOK_CLIENT_ID: FACEBOOK_CLIENT_ID
-            FACEBOOK_CLIENT_SECRET: FACEBOOK_CLIENT_SECRET
-            GOOGLE_CLIENT_ID: GOOGLE_CLIENT_ID
-            GOOGLE_CLIENT_SECRET: GOOGLE_CLIENT_SECRET
-            YAHOO_CLIENT_ID: YAHOO_CLIENT_ID
-            YAHOO_CLIENT_SECRET: YAHOO_CLIENT_SECRET
+            PROXY_API_URL: http://huitparfait-api:3000
         labels:
             - "traefik.backend=huitparfait-auth"
             - "traefik.protocol=http"
             - "traefik.port=3000"
-            - "traefik.frontend.rule=Host:huitparfait.fr;PathPrefix:/api,/auth"
+            - "traefik.frontend.rule=Host:localhost;PathPrefix:/api,/auth"
 
     huitparfait-api:
         build: ./huitparfait-api
         image: huitparfait/huitparfait-api
         restart: always
+        env_file:
+            - .env
+            - .env.local
         volumes:
             - ./keys:/jwt-keys
         environment:
             NODE_ENV: production
-            SERVER_URL: http://localhost:3000
-            SERVER_PORT: 3000
             JWT_PUBLIC_KEY_PATH: /jwt-keys/jwt-public.pem
-            JWT_PRIVATE_KEY_PATH: /jwt-keys/jwt-private.pem
-            API_ANALYTICS_API_KEY: API_ANALYTICS_API_KEY
-            HTTP_SECRET: HTTP_SECRET
+            API_SERVER_PORT: 3000

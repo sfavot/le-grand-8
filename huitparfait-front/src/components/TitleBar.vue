@@ -1,9 +1,9 @@
 <template>
     <div class="titleBar" :class="{ 'isLoading': loaders > 0 }">
-        <div class="icon">
-            <img src="../assets/huitparfait-logo.svg">
+        <div class="title">
+            <span class="titleLeGrand">Le Grand</span>
+            <img class="titleLogo" src="/static/logo_small.webp" alt="">
         </div>
-        <div class="title"><span class="huit">Huit</span> Parfait</div>
     </div>
 </template>
 
@@ -25,10 +25,13 @@
         align-items: center;
         background-color: #4db788;
         border-bottom: 2px solid #49996f;
+        box-sizing: border-box;
         color: #fff;
         display: flex;
         font-weight: bold;
         justify-content: center;
+        min-height: 0;
+        overflow: hidden;
     }
 
     @keyframes move {
@@ -55,32 +58,23 @@
         background-size: 50px 50px;
     }
 
-    .icon {
-        border: 3px solid #fff;
-        border-radius: 5px;
-        display: none;
-        height: 30px;
-        overflow: hidden;
-        margin-right: 10px;
-        width: 30px;
+    .title {
+        align-items: center;
+        display: flex;
+        gap: 0.35em;
+        line-height: 1;
     }
 
-    @media (min-width: 850px) {
-        .icon {
-            display: block;
-        }
-    }
-
-    @media (min-width: 850px) {
-        .huit {
-            display: none;
-        }
-    }
-
-    img {
+    .titleLogo {
         display: block;
-        height: 100%;
-        width: 100%;
+        height: 32px;
+        width: auto;
+    }
+
+    @media (min-width: 850px) {
+        .titleLogo {
+            height: 40px;
+        }
     }
 
 </style>

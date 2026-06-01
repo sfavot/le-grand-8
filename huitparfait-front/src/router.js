@@ -5,10 +5,12 @@ import Predictions from './components/Predictions'
 import GroupList from './components/GroupList'
 import GroupUsers from './components/GroupUsers'
 import GroupRanking from './components/GroupRanking'
+import GroupsRanking from './components/GroupsRanking'
 import GroupJoin from './components/GroupJoin'
 import NewGroup from './components/NewGroup'
 import Faq from './components/Faq'
 import Profile from './components/Profile'
+import Admin from './components/Admin'
 import { hideSubmenu } from './state/actions/submenu'
 import store from './state/configureStore'
 
@@ -27,6 +29,10 @@ router.map({
     '/classements': {
         name: 'rankings',
         component: Rankings,
+    },
+    '/classements/groupes': {
+        name: 'groupsRanking',
+        component: GroupsRanking,
     },
     '/classements/:groupId/:groupName': {
         name: 'groupRanking',
@@ -59,6 +65,10 @@ router.map({
     '/profil': {
         name: 'profile',
         component: Profile,
+    },
+    '/admin': {
+        name: 'admin',
+        component: Admin,
     },
 })
 

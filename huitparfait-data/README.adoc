@@ -1,0 +1,66 @@
+= Données Neo4j
+
+Neo4j est la base « graphe » du projet : équipes, matchs, risquettes, liens entre eux.
+En local, elle tourne dans Docker ; l’interface web s’appelle **Neo4j Browser**.
+
+== Importer la Coupe du monde 2026 (le plus simple)
+
+Prérequis : `make neo4j-up` (Neo4j démarré).
+
+[source,bash]
+----
+make data-import-wc2026
+----
+
+Tu dois voir à la fin quelque chose comme `matchs: 72`.
+
+== Méthode manuelle (Neo4j Browser)
+
+1. Ouvre http://localhost:7474
+2. Connecte-toi :
+   * **Username** : `neo4j`
+   * **Password** : `huitparfait-local` (valeur de `NEO4J_PASSWORD` dans `.env`)
+3. En haut, une zone de saisie avec un prompt `neo4j$` : c’est là qu’on exécute du **Cypher** (langage de requête).
+4. Pour vider la base avant un réimport :
++
+[source,cypher]
+----
+MATCH (n) DETACH DELETE n;
+----
++
+5. Ouvre le fichier `init-data-2026wc.cql` dans ton éditeur, **tout sélectionner**, copier.
+6. Colle dans la zone Cypher du Browser, clique sur le bouton **Run** (▶).
+7. Vérifie :
++
+[source,cypher]
+----
+MATCH (g:Game) RETURN count(g);
+----
++
+Résultat attendu : **72**.
+
+== Fichiers
+
+| Fichier | Rôle |
+|---------|------|
+| `wc2026-teams.json` | 48 équipes, 12 groupes |
+| `wc2026-group-matches.json` | 72 matchs de groupes |
+| `wc2026-risks.json` | 25 risquettes |
+| `init-data-2026wc.cql` | Script d’import généré |
+
+Régénérer le CQL :
+
+[source,bash]
+----
+make data-wc2026-generate
+----
+
+Drapeaux front : `make flags-wc2026`.
+
+== Administration (résultats + calcul des points)
+
+Interface : `/admin` (connexion Google requise + mot de passe `ADMIN_PASSWORD`).
+
+== Euro 2016 (historique)
+
+`init-data-2016euro.cql` : 24 équipes, 51 matchs. Import possible de la même façon (Browser ou `cypher-shell`).

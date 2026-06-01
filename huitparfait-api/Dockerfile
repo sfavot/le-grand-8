@@ -1,20 +1,18 @@
-FROM node:6.2.0
+FROM node:22-alpine
 
-RUN mkdir /app
 WORKDIR /app
 
-# Copy sources and config
-COPY ./config /app/config
-COPY ./src /app/src
-COPY ./.babelrc /app
-COPY ./package.json /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# Build application
-RUN npm install
-RUN npm run build
+COPY config ./config
+COPY src ./src
 
-# Clean build dependencies
-RUN npm prune --production
-RUN rm /app/.babelrc
+ENV NODE_ENV=production
 
-ENTRYPOINT ["npm", "run", "start"]
+EXPOSE 3100
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s \
+  CMD wget -qO- http://127.0.0.1:${PORT:-3100}/health || exit 1
+
+CMD ["node", "src/server.js"]

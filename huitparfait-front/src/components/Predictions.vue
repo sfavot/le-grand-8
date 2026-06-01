@@ -1,14 +1,24 @@
 <template>
     <div class="page--predictions">
 
-        <div class="day" v-for="(gameDate, games) in gamesByDay">
+        <card v-if="showPreviousEmptyState" class="predictions-empty">
+            <p><strong>Rien ici pour l'instant.</strong></p>
+            <p>Les matchs passés s'afficheront ici une fois qu'une journée de compétition sera terminée.</p>
+            <p class="predictions-empty-link">
+                <link-btn v-link="{ name: 'predictions', params: { period: 'prochains-matchs' } }">
+                    Voir les prochains matchs
+                </link-btn>
+            </p>
+        </card>
 
-            <card-title class="gameDate">{{* gameDate | date}}</card-title>
+        <div class="day" v-for="day in gamesByDayList" track-by="gameDate">
+
+            <card-title class="gameDate">{{* day.gameDate | date}}</card-title>
             <card-list wide class="games">
 
                 <card wide class="game"
                         :class="{ 'game--submissionDisabled': isSubmissionClosed(game), 'game--unsaved' : game.unsaved }"
-                        v-for="game in games" track-by="gameId">
+                        v-for="game in day.games" track-by="gameId">
 
                     <div class="game-header">
                         <div class="game-name">
@@ -22,7 +32,8 @@
                     <div class="game-teams">
                         <div class="game-teams-section">
                             <img v-if="game.countryCodeTeamA" class="flag"
-                                    :src="'/static/flags/' + game.countryCodeTeamA + '.svg'"/>
+                                    :src="flagSrc(game.countryCodeTeamA)"
+                                    @error="onFlagError"/>
                             <img v-if="!game.countryCodeTeamA" class="flag unknownTeam"
                                     src="../assets/unknown-team.svg"/>
                             <div class="game-countryName">{{* game.countryNameTeamA}}</div>
@@ -34,11 +45,15 @@
                             <div v-if="hasScoreWithPenalties(game) && isResultPublishable(game)"
                                  class="game-penalties">Tab. {{* game.penaltiesTeamA}} - {{* game.penaltiesTeamB}}
                             </div>
-                            <div v-if="!hasScore(game) || !isResultPublishable(game)" class="game-time">{{* game.startsAt | time}}</div>
+                            <div v-if="!hasScore(game) || !isResultPublishable(game)" class="game-time">
+                                <div>{{* game.startsAt | time}}</div>
+                                <div v-if="venueTimeLabel(game)" class="game-time-venue">{{* venueTimeLabel(game) }}</div>
+                            </div>
                         </div>
                         <div class="game-teams-section">
                             <img v-if="game.countryCodeTeamB" class="flag"
-                                    :src="'/static/flags/' + game.countryCodeTeamB + '.svg'"/>
+                                    :src="flagSrc(game.countryCodeTeamB)"
+                                    @error="onFlagError"/>
                             <img v-if="!game.countryCodeTeamB" class="flag unknownTeam"
                                     src="../assets/unknown-team.svg"/>
                             <div class="game-countryName">{{* game.countryNameTeamB}}</div>
@@ -153,7 +168,7 @@
                         </div>
                         <div class="game-pointsExplanation"
                                 v-if="isResultPublishable(game) && game.points == 8">
-                            Huit parfait !
+                            Grand 8 !
                         </div>
                     </div>
 
@@ -170,6 +185,8 @@
     import { fetchPredictions, savePrediction } from '../state/actions/predictions'
     import _ from 'lodash'
     import moment from 'moment'
+    import { flagSrc, onFlagError } from '../flagSrc'
+    import { formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
 
     moment.locale('fr')
 
@@ -177,33 +194,58 @@
         data() {
             return {
                 predictions: this.$select('predictions'),
-                gamesByDay: null,
+                gamesByDayList: null,
             }
+        },
+        computed: {
+            showPreviousEmptyState() {
+                return this.$route.params.period === 'matchs-precedents'
+                    && this.gamesByDayList != null
+                    && this.gamesByDayListIsEmpty(this.gamesByDayList)
+            },
+        },
+        ready() {
+            this.syncGamesByDayFromStore()
         },
         route: {
             data() {
                 switch (this.$route.params.period) {
                     case 'matchs-precedents':
                         return store.dispatch(fetchPredictions('previous-days'))
+                            .then(() => this.syncGamesByDayFromStore())
                     case 'prochains-matchs':
                         return store.dispatch(fetchPredictions('next-days'))
+                            .then(() => this.syncGamesByDayFromStore())
                     default:
                         return store.dispatch(fetchPredictions())
+                            .then(() => this.syncGamesByDayFromStore())
                 }
             },
         },
         watch: {
-            predictions(predictions) {
-
-                if (predictions == null) {
-                    this.gamesByDay = null
-                    return
-                }
-
-                this.gamesByDay = _.cloneDeep(predictions)
+            predictions() {
+                this.syncGamesByDayFromStore()
             },
         },
         methods: {
+            flagSrc,
+            onFlagError,
+            syncGamesByDayFromStore() {
+                if (this.predictions == null) {
+                    this.gamesByDayList = null
+                    return
+                }
+                this.gamesByDayList = _(this.predictions)
+                    .map((games, dayKey) => ({
+                        gameDate: Number(dayKey),
+                        games: _.cloneDeep(games),
+                    }))
+                    .sortBy('gameDate')
+                    .value()
+            },
+            gamesByDayListIsEmpty(gamesByDayList) {
+                return _(gamesByDayList).map('games').flatten().isEmpty()
+            },
             hasScore: function (game) {
                 return game.goalsTeamA != null &&
                     game.goalsTeamB != null
@@ -257,6 +299,9 @@
 
                 return true
             },
+            venueTimeLabel(game) {
+                return formatGameVenueTime(game.startsAt, game.city)
+            },
             savePrediction: function (game) {
                 if (game.unsaved !== true || !this.predictionIsValid(game)) {
                     return
@@ -272,11 +317,15 @@
             },
         },
         filters: {
-            date: function (gameTime) {
-                return moment(gameTime).format('dddd Do MMMM')
+            date: function (dayKey) {
+                const timestamp = Number(dayKey)
+                if (isNaN(timestamp)) {
+                    return ''
+                }
+                return moment(timestamp).format('dddd Do MMMM')
             },
-            time: function (gameTime) {
-                return moment(gameTime).format('HH[h]mm')
+            time: function (startsAt) {
+                return formatLocalTime(startsAt)
             },
             abs: function (number) {
                 return Math.abs(number)
@@ -286,6 +335,15 @@
 </script>
 
 <style scoped>
+
+    .predictions-empty p {
+        margin: 0 0 0.75em;
+    }
+
+    .predictions-empty-link {
+        margin: 1em 0 0;
+        text-align: center;
+    }
 
     .gameDate {
         text-transform: capitalize;
@@ -354,7 +412,8 @@
         border-bottom-width: 2px;
         border-radius: 4px;
         height: 80px;
-        width: 80px;
+        width: auto;
+        max-width: 100%;
     }
 
     .game-countryName {
@@ -367,6 +426,13 @@
         font-size: 18px;
         font-weight: bold;
         margin-top: 25px;
+    }
+
+    .game-time-venue {
+        color: #888;
+        font-size: 13px;
+        font-weight: normal;
+        margin-top: 4px;
     }
 
     .game-score {

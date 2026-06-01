@@ -1,11 +1,12 @@
 <script type="text/babel">
 
-    import * as WebApi from '../WebApi'
+    import store from '../state/configureStore'
+    import { joinGroup } from '../state/actions/groups'
 
     export default {
         route: {
             canActivate({ to: { params: { groupId } }, redirect }) {
-                return WebApi.joinGroup(groupId).then(() => {
+                return store.dispatch(joinGroup({ id: groupId })).then(() => {
                     redirect({ name: 'groupRanking', params: { groupId: groupId } })
                 })
             },

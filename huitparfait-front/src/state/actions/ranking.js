@@ -69,3 +69,38 @@ export function fetchGroupRanking(groupId, page) {
             .catch(() => dispatch(fetchGroupRankingFailure()))
     }
 }
+
+export const FETCH_GROUPS_RANKING = 'FETCH_GROUPS_RANKING'
+function fetchGroupsRankingAttempt() {
+    return {
+        type: FETCH_GROUPS_RANKING,
+    }
+}
+
+export const FETCH_GROUPS_RANKING_SUCCESS = 'FETCH_GROUPS_RANKING_SUCCESS'
+function fetchGroupsRankingSuccess(groupsRanking, page) {
+    return {
+        type: FETCH_GROUPS_RANKING_SUCCESS,
+        page,
+        groupsRanking,
+    }
+}
+
+export const FETCH_GROUPS_RANKING_FAILURE = 'FETCH_GROUPS_RANKING_FAILURE'
+function fetchGroupsRankingFailure() {
+    return {
+        type: FETCH_GROUPS_RANKING_FAILURE,
+    }
+}
+
+export function fetchGroupsRanking(page) {
+
+    return (dispatch) => {
+
+        dispatch(fetchGroupsRankingAttempt())
+
+        api.fetchGroupsRanking(page)
+            .then((ranking) => dispatch(fetchGroupsRankingSuccess(ranking, page)))
+            .catch(() => dispatch(fetchGroupsRankingFailure()))
+    }
+}

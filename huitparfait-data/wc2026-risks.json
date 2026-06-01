@@ -1,0 +1,31 @@
+{
+  "comment": "Risques phase de groupes (identiques à l'Euro 2016, risques 1-25).",
+  "risks": [
+    { "n": 1, "id": "By_BrLoNLm", "text": "Au moins 2 buts d'écart" },
+    { "n": 2, "id": "BytHSIoNUQ", "text": "Au moins un but après la 80ème minute" },
+    { "n": 3, "id": "ryqHBLi48Q", "text": "Au moins un but après la 70ème minute" },
+    { "n": 4, "id": "rkirSIjN8X", "text": "Au moins un but de la tête" },
+    { "n": 5, "id": "By3rBIj4L7", "text": "Au moins un but sur penalty" },
+    { "n": 6, "id": "B16HHUjEUQ", "text": "Autant de buts en première qu'en seconde période" },
+    { "n": 7, "id": "SyCBrLsE8X", "text": "But d'un joueur avec un numéro impair" },
+    { "n": 8, "id": "HJkIBLjNU7", "text": "But d'un joueur avec un numéro pair" },
+    { "n": 9, "id": "rJlIBIo48X", "text": "But d'un joueur ayant 27 ans ou plus" },
+    { "n": 10, "id": "SkbLSIsVLX", "text": "But d'un joueur ayant moins de 25 ans" },
+    { "n": 11, "id": "BkGLHLsVUm", "text": "But du pied gauche" },
+    { "n": 12, "id": "BkmIS8iELm", "text": "Chaque équipe marque au moins un but" },
+    { "n": 13, "id": "SkN8BUsNI7", "text": "Score total impair" },
+    { "n": 14, "id": "ByHIS8oVIQ", "text": "Score total pair" },
+    { "n": 15, "id": "ryIUSIoV8m", "text": "Au moins 2 corners par équipe" },
+    { "n": 16, "id": "SkPUSUi48Q", "text": "Au moins 3 cartons jaunes" },
+    { "n": 17, "id": "HJOUr8j487", "text": "Au moins 7 hors-jeu sifflés" },
+    { "n": 18, "id": "B1YUBIiEIQ", "text": "Au moins un but dans les 10 premières minutes" },
+    { "n": 19, "id": "SJ9UBIoNIQ", "text": "Au moins un expulsé" },
+    { "n": 20, "id": "r1jIrLsEIQ", "text": "Au moins un remplacement avant la mi-temps" },
+    { "n": 21, "id": "BJh8SLo4LQ", "text": "Le joueur du match a un numéro impair" },
+    { "n": 22, "id": "H1aIS8i4LQ", "text": "Le joueur du match a un numéro pair" },
+    { "n": 23, "id": "B10LH8sE87", "text": "Les 6 changements sont effectués" },
+    { "n": 24, "id": "BJJPSIi4Um", "text": "Un joueur sort sur civière" },
+    { "n": 25, "id": "rJgPrIoV8X", "text": "But d'un joueur contre son camp" }
+  ],
+  "groupStageRiskOrder": [18, 11, 6, 14, 5, 19, 22, 4, 3, 17, 8, 21, 12, 10, 24, 20, 9, 7, 25, 23, 1, 13, 2, 15, 16]
+}

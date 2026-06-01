@@ -1,4 +1,7 @@
 var path = require('path')
+
+require(path.join(__dirname, '../../scripts/load-env')).loadEnv()
+
 var express = require('express')
 var webpack = require('webpack')
 var config = require('../config')
@@ -8,7 +11,7 @@ var webpackConfig = process.env.NODE_ENV === 'testing'
   : require('./webpack.dev.conf')
 
 // default port where dev server listens for incoming traffic
-var port = process.env.PORT || config.dev.port
+var port = process.env.PORT || process.env.FRONT_DEV_PORT || config.dev.port
 // Define HTTP proxies to your custom API backend
 // https://github.com/chimurai/http-proxy-middleware
 var proxyTable = config.dev.proxyTable

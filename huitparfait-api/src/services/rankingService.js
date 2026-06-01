@@ -1,11 +1,17 @@
-import { cypher } from '../infra/neo4j'
+import { cypher } from '../infra/neo4j.js'
 import _ from 'lodash'
-import { betterUser, fetchUsersWithIds } from './userService'
+import { betterUser, fetchUsersWithIds } from './userService.js'
+import { betterGroup } from './groupService.js'
 import moment from 'moment'
+import { calculateRank } from './ranking-rank.js'
+
+export { calculateRank } from './ranking-rank.js'
 
 let commonRankingCache
 
-fetchCommonRankingByCache({})
+fetchCommonRankingByCache({}).catch((err) => {
+    console.warn('Ranking cache warmup skipped:', err.message)
+})
 
 export function fetchCommonRankingByCache({ forceUpdate = false }) {
     if (commonRankingCache && !forceUpdate) {
@@ -42,7 +48,7 @@ export function fetchCommonRankingWithPaginate({ page = 1, pageSize = 50 }) {
         .then(calculateRank)
         .then(paginate)
         .then(attachUser)
-        .map(formatRanking({ transformAnonymous: true }))
+        .then((ranking) => ranking.map(formatRanking({ transformAnonymous: true })))
 
 
     function attachUser(ranking) {
@@ -68,6 +74,79 @@ export function fetchCommonRankingWithPaginate({ page = 1, pageSize = 50 }) {
 
         const from = pageSize * (page - 1)
         return results.slice(from, pageSize + from)
+    }
+}
+
+function getEightLimit() {
+    const now = moment()
+    // TODO handle 8:08 on Europe/Paris timezone properly ;-)
+    const eightLimit = moment().startOf('day').add({ hours: 6, minutes: 8 })
+
+    if (now.isBefore(eightLimit)) {
+        return eightLimit.subtract(1, 'days').valueOf()
+    }
+
+    return eightLimit.valueOf()
+}
+
+export function calculateGroupsRanking({ userId, page = 1, pageSize = 50 }) {
+
+    const eightLimit = getEightLimit()
+
+    return cypher(`
+        MATCH (g:Group)
+        WHERE coalesce(g.excludeFromGroupsRanking, false) = false
+        MATCH (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
+        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[:IS_ABOUT_GAME]->(game:Game)
+        WHERE game.startsAt < {eightLimit}
+        WITH g, u, coalesce(SUM(p.classicPoints + p.riskPoints), 0) AS userScore
+        WITH g, AVG(userScore) AS averageScore, count(DISTINCT u) AS memberCount
+        OPTIONAL MATCH (me:User { id: {userId} })-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
+        RETURN
+                g.id        AS groupId,
+                g.name      AS name,
+                g.avatarUrl AS avatarUrl,
+                averageScore,
+                memberCount,
+                count(me) > 0 AS isMember
+        ORDER BY averageScore DESC, memberCount DESC`,
+        {
+            userId,
+            eightLimit,
+        })
+        .then((results) => results.map((row) => ({
+            ...row,
+            totalScore: row.averageScore,
+        })))
+        .then(calculateRank)
+        .then(paginateGroupsRanking(page, pageSize))
+        .then((results) => results.map(formatGroupsRanking))
+}
+
+function paginateGroupsRanking(page, pageSize) {
+    return function paginate(results = []) {
+        if (page === 0) {
+            page = 1
+        }
+
+        const from = pageSize * (page - 1)
+        return results.slice(from, pageSize + from)
+    }
+}
+
+function formatGroupsRanking(row) {
+    return {
+        rank: row.rank,
+        group: betterGroup({
+            id: row.groupId,
+            name: row.name,
+            avatarUrl: row.avatarUrl,
+        }),
+        stats: {
+            averageScore: Math.round(row.averageScore * 10) / 10,
+            memberCount: row.memberCount,
+        },
+        isMember: row.isMember,
     }
 }
 
@@ -105,7 +184,7 @@ export function calculateRanking({ groupId, userId, page = 1, pageSize = 50 }) {
         })
         .then(calculateRank)
         .then(paginate)
-        .map(formatRanking({ transformAnonymous: false }))
+        .then((results) => results.map(formatRanking({ transformAnonymous: false })))
 
     function paginate(results = []) {
         if (page === 0) {
@@ -116,17 +195,6 @@ export function calculateRanking({ groupId, userId, page = 1, pageSize = 50 }) {
         return results.slice(from, pageSize + from)
     }
 
-    function getEightLimit() {
-        const now = moment()
-        // TODO handle 8:08 on Europe/Paris timezone properly ;-)
-        const eightLimit = moment().startOf('day').add({ hours: 6, minutes: 8 })
-
-        if (now.isBefore(eightLimit)) {
-            return eightLimit.subtract(1, 'days').valueOf()
-        }
-
-        return eightLimit.valueOf()
-    }
 }
 
 function formatRanking({ transformAnonymous }) {
@@ -144,17 +212,3 @@ function formatRanking({ transformAnonymous }) {
     }
 }
 
-export function calculateRank(ranking = []) {
-
-    ranking.forEach((row, idx, rows) => {
-
-        if (idx > 0 && rows[idx - 1].totalScore === row.totalScore) {
-            row.rank = rows[idx - 1].rank
-            return
-        }
-
-        row.rank = idx + 1
-    })
-
-    return ranking
-}

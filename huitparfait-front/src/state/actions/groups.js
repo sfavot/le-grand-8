@@ -1,9 +1,12 @@
 import {
     fetchUserGroups as apiFetchUserGroups,
+    fetchLeftUserGroups as apiFetchLeftUserGroups,
+    joinGroup as apiJoinGroup,
     fetchGroup as apiFetchGroup,
     fetchGroupUsers as apiFetchGroupUsers,
     upsertGroup as apiUpsertGroup,
     deleteGroup as apiDeleteGroup,
+    leaveGroup as apiLeaveGroup,
 } from '../../WebApi'
 
 export const FETCH_USER_GROUPS = 'FETCH_USER_GROUPS'
@@ -37,6 +40,40 @@ export function fetchUserGroups() {
         apiFetchUserGroups()
             .then((groups) => dispatch(fetchUserGroupsSuccess(groups)))
             .catch(() => dispatch(fetchUserGroupsFailure()))
+    }
+}
+
+export const FETCH_LEFT_USER_GROUPS = 'FETCH_LEFT_USER_GROUPS'
+function fetchLeftUserGroupsAttempt() {
+    return {
+        type: FETCH_LEFT_USER_GROUPS,
+    }
+}
+
+export const FETCH_LEFT_USER_GROUPS_SUCCESS = 'FETCH_LEFT_USER_GROUPS_SUCCESS'
+function fetchLeftUserGroupsSuccess(groups) {
+    return {
+        type: FETCH_LEFT_USER_GROUPS_SUCCESS,
+        groups,
+    }
+}
+
+export const FETCH_LEFT_USER_GROUPS_FAILURE = 'FETCH_LEFT_USER_GROUPS_FAILURE'
+function fetchLeftUserGroupsFailure() {
+    return {
+        type: FETCH_LEFT_USER_GROUPS_FAILURE,
+    }
+}
+
+export function fetchLeftUserGroups() {
+
+    return (dispatch) => {
+
+        dispatch(fetchLeftUserGroupsAttempt())
+
+        apiFetchLeftUserGroups()
+            .then((groups) => dispatch(fetchLeftUserGroupsSuccess(groups)))
+            .catch(() => dispatch(fetchLeftUserGroupsFailure()))
     }
 }
 
@@ -179,5 +216,81 @@ export function deleteGroup(group) {
         return apiDeleteGroup(group.id)
             .then(() => dispatch(deleteGroupSuccess()))
             .catch(() => dispatch(deleteGroupFailure(group)))
+    }
+}
+
+export const LEAVE_GROUP = 'LEAVE_GROUP'
+function leaveGroupAttempt(group) {
+    return {
+        type: LEAVE_GROUP,
+        group,
+    }
+}
+
+export const LEAVE_GROUP_SUCCESS = 'LEAVE_GROUP_SUCCESS'
+function leaveGroupSuccess(group) {
+    return {
+        type: LEAVE_GROUP_SUCCESS,
+        group,
+    }
+}
+
+export const LEAVE_GROUP_FAILURE = 'LEAVE_GROUP_FAILURE'
+function leaveGroupFailure(group) {
+    return {
+        type: LEAVE_GROUP_FAILURE,
+        group,
+    }
+}
+
+export function leaveGroup(group) {
+
+    return (dispatch) => {
+
+        dispatch(leaveGroupAttempt(group))
+
+        return apiLeaveGroup(group.id)
+            .then(() => dispatch(leaveGroupSuccess(group)))
+            .catch(() => dispatch(leaveGroupFailure(group)))
+    }
+}
+
+export const JOIN_GROUP = 'JOIN_GROUP'
+function joinGroupAttempt(group) {
+    return {
+        type: JOIN_GROUP,
+        group,
+    }
+}
+
+export const JOIN_GROUP_SUCCESS = 'JOIN_GROUP_SUCCESS'
+function joinGroupSuccess(group) {
+    return {
+        type: JOIN_GROUP_SUCCESS,
+        group,
+    }
+}
+
+export const JOIN_GROUP_FAILURE = 'JOIN_GROUP_FAILURE'
+function joinGroupFailure(group) {
+    return {
+        type: JOIN_GROUP_FAILURE,
+        group,
+    }
+}
+
+export function joinGroup(group) {
+
+    return (dispatch) => {
+
+        dispatch(joinGroupAttempt(group))
+
+        return apiJoinGroup(group.id)
+            .then(() => {
+                dispatch(joinGroupSuccess(group))
+                dispatch(fetchUserGroups())
+                dispatch(fetchLeftUserGroups())
+            })
+            .catch(() => dispatch(joinGroupFailure(group)))
     }
 }

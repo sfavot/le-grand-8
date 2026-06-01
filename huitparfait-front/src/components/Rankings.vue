@@ -12,9 +12,10 @@
             </p>
         </card>
 
-        <card-title v-if="ranking && ranking.length > 0">Classements de vos groupe(s) :</card-title>
+        <card-title>Classements :</card-title>
 
         <card-list>
+            <group :group="groupsRankingEntry" :link="'groupsRanking'"></group>
             <group :group="generalGroup" :link="'groupRanking'"></group>
             <group v-for="group in groups" :group="group" :link="'groupRanking'"></group>
         </card-list>
@@ -38,7 +39,13 @@
                     name: 'Classement général',
                     id: 'general',
                     slug: 'general',
-                    avatarUrl: '/static/huitparfait-logo.png'
+                    avatarUrl: '/static/web-app-manifest-192x192.png',
+                },
+                groupsRankingEntry: {
+                    name: 'Classement des groupes',
+                    id: 'groups',
+                    slug: 'groupes',
+                    avatarUrl: '/static/web-app-manifest-192x192.png',
                 },
                 groups: this.$select('groups'),
             }

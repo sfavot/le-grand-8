@@ -40,6 +40,13 @@ Vue.filter('frenchPlural', function (count, text) {
     return text
 })
 
+function startApp() {
+    if (router.app) {
+        return
+    }
+    router.start(App, 'body')
+}
+
 store.dispatch(fetchCurrentUser())
-    .then(() => router.start(App, 'body'))
-    .catch(() => router.start(App, 'body'))
+    .then(startApp)
+    .catch(startApp)

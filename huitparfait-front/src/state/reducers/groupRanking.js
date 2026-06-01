@@ -8,7 +8,7 @@ export default function (state = initialState, action) {
 
         case FETCH_GROUP_RANKING_SUCCESS:
             return {
-                ranking: _.sortBy(action.groupRanking, (group) => group.name && group.name.toLowerCase()),
+                ranking: action.groupRanking,
                 page: action.page,
             }
 

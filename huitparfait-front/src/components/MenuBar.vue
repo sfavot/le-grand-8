@@ -17,6 +17,7 @@
             </a>
             <a class="sub-menuitem" v-link="{ name: 'predictions', activeClass: 'sub-menuitem--active', params: { period: 'prochains-matchs' } }">
                 Prochains matchs
+                <span v-if="unfilledPredictionsCount > 0" class="sub-menuitem-badge">{{ unfilledPredictionsCount }}</span>
             </a>
         </div>
         <a class="menuitem" v-link="{ name: 'groupList', activeClass: 'menuitem--active' }">
@@ -34,6 +35,9 @@
             <img class="menuitem-icon menuitem-icon--green" src="../assets/profile-green.svg" alt="">
             <span class="menuitem-label">Profil</span>
         </a>
+        <div class="sub-menubar">
+            <a class="sub-menuitem" href="/auth/logout">Déconnexion</a>
+        </div>
     </div>
 
 </template>
@@ -42,14 +46,36 @@
 
     import store from '../state/configureStore'
     import { showSubmenu, hideSubmenu } from '../state/actions/submenu'
+    import { fetchUnfilledPredictionsBadge } from '../state/actions/predictions'
 
     export default {
         data() {
             return {
                 submenu: this.$select('submenu'),
+                user: this.$select('user'),
+                unfilledPredictionsCount: 0,
             }
         },
+        created() {
+            this.$select('predictionsBadge as unfilledPredictionsCount')
+        },
+        ready() {
+            this.loadBadgeCount()
+        },
+        watch: {
+            user(user) {
+                if (user != null) {
+                    this.loadBadgeCount()
+                }
+            },
+        },
         methods: {
+            loadBadgeCount() {
+                if (store.state.user == null) {
+                    return
+                }
+                return store.dispatch(fetchUnfilledPredictionsBadge())
+            },
             togglePredictionsSubmenu() {
 
                 if (this.submenu === false) {
@@ -74,6 +100,9 @@
     @media (min-width: 850px) {
         .main-menubar {
             background: #f9f9f9;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
         }
     }
 
@@ -96,6 +125,7 @@
             background: #f9f9f9;
             flex: 0 0 auto;
             flex-direction: row;
+            flex-shrink: 0;
             height: auto;
             padding: 10px 0;
             text-align: left;
@@ -170,6 +200,21 @@
         width: 100%;
     }
 
+    .sub-menuitem-badge {
+        background-color: #d9534f;
+        border-radius: 9px;
+        color: #fff;
+        display: inline-block;
+        font-size: 11px;
+        font-weight: bold;
+        line-height: 18px;
+        margin-left: 6px;
+        min-width: 18px;
+        padding: 0 5px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
     @media (min-width: 500px) {
         .menuitem-label {
             font-size: 15px;
@@ -215,6 +260,7 @@
     @media (min-width: 850px) {
         .sub-menubar {
             background-color: transparent;
+            flex-shrink: 0;
             position: static;
             transform: none;
             transition: none;
@@ -241,6 +287,7 @@
         .sub-menuitem {
             border: none;
             color: #777;
+            flex-shrink: 0;
             padding: 10px 0 10px 60px;
             text-align: left;
         }

@@ -8,6 +8,7 @@
             </div>
             <div class="infos">
                 <div class="name">{{ user.name }}</div>
+                <div class="email" v-if="user.email">{{ user.email }}</div>
                 <div class="anonymousName">{{ user.anonymousName }}</div>
             </div>
         </div>
@@ -83,8 +84,15 @@
         font-weight: bold;
     }
 
+    .email {
+        color: #777;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+
     .anonymousName {
         font-style: italic;
+        margin-top: 4px;
     }
 
     .btnBar {
