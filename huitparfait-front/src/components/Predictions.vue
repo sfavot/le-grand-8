@@ -11,7 +11,19 @@
             </p>
         </card>
 
-        <div class="day" v-for="day in gamesByDayList" track-by="gameDate">
+        <div v-if="showUnfilledFilterToggle" class="predictions-filter">
+            <btn class="predictions-filter-button" :class="{ 'predictions-filter-button--active': onlyUnfilledGames }"
+                    @click="toggleOnlyUnfilledGames">
+                Matchs non pronostiqués
+            </btn>
+        </div>
+
+        <card v-if="showOnlyUnfilledEmptyState" class="predictions-empty">
+            <p><strong>Tous les prochains matchs sont pronostiqués.</strong></p>
+            <p>Tu peux revenir à l'affichage complet pour consulter ou modifier tes pronostics.</p>
+        </card>
+
+        <div class="day" v-for="day in displayedGamesByDayList" track-by="gameDate">
 
             <card-title class="gameDate">{{* day.gameDate | date}}</card-title>
             <card-list wide class="games">
@@ -187,6 +199,7 @@
     import moment from 'moment'
     import { flagSrc, onFlagError } from '../flagSrc'
     import { formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
+    import { predictionIsFilled } from '../predictionUtils'
 
     moment.locale('fr')
 
@@ -195,6 +208,8 @@
             return {
                 predictions: this.$select('predictions'),
                 gamesByDayList: null,
+                onlyUnfilledGames: false,
+                onlyUnfilledSnapshotByGameId: null,
             }
         },
         computed: {
@@ -203,12 +218,41 @@
                     && this.gamesByDayList != null
                     && this.gamesByDayListIsEmpty(this.gamesByDayList)
             },
+            showUnfilledFilterToggle() {
+                return this.$route.params.period === 'prochains-matchs'
+                    && this.gamesByDayList != null
+                    && !this.gamesByDayListIsEmpty(this.gamesByDayList)
+            },
+            displayedGamesByDayList() {
+                if (this.gamesByDayList == null || this.onlyUnfilledGames !== true) {
+                    return this.gamesByDayList
+                }
+
+                if (this.onlyUnfilledSnapshotByGameId == null) {
+                    return this.gamesByDayList
+                }
+
+                return _(this.gamesByDayList)
+                    .map((day) => ({
+                        gameDate: day.gameDate,
+                        games: _.filter(day.games, (game) => this.onlyUnfilledSnapshotByGameId[game.gameId] === true),
+                    }))
+                    .reject((day) => _.isEmpty(day.games))
+                    .value()
+            },
+            showOnlyUnfilledEmptyState() {
+                return this.onlyUnfilledGames === true
+                    && this.displayedGamesByDayList != null
+                    && this.gamesByDayListIsEmpty(this.displayedGamesByDayList)
+            },
         },
         ready() {
             this.syncGamesByDayFromStore()
         },
         route: {
             data() {
+                this.onlyUnfilledGames = false
+                this.onlyUnfilledSnapshotByGameId = null
                 switch (this.$route.params.period) {
                     case 'matchs-precedents':
                         return store.dispatch(fetchPredictions('previous-days'))
@@ -302,6 +346,27 @@
             venueTimeLabel(game) {
                 return formatGameVenueTime(game.startsAt, game.city)
             },
+            buildOnlyUnfilledSnapshotByGameId() {
+                if (this.gamesByDayList == null) {
+                    return {}
+                }
+
+                return _(this.gamesByDayList)
+                    .map('games')
+                    .flatten()
+                    .reject(predictionIsFilled)
+                    .map((game) => game.gameId)
+                    .keyBy((gameId) => gameId)
+                    .mapValues(() => true)
+                    .value()
+            },
+            toggleOnlyUnfilledGames() {
+                const nextState = !this.onlyUnfilledGames
+                this.onlyUnfilledGames = nextState
+                this.onlyUnfilledSnapshotByGameId = nextState
+                    ? this.buildOnlyUnfilledSnapshotByGameId()
+                    : null
+            },
             savePrediction: function (game) {
                 if (game.unsaved !== true || !this.predictionIsValid(game)) {
                     return
@@ -343,6 +408,28 @@
     .predictions-empty-link {
         margin: 1em 0 0;
         text-align: center;
+    }
+
+    .predictions-filter {
+        margin-bottom: 12px;
+        text-align: center;
+    }
+
+    @media (min-width: 500px) {
+        .predictions-filter {
+            text-align: right;
+        }
+    }
+
+    .btn.predictions-filter-button {
+        margin: 0 auto;
+    }
+
+    .btn.predictions-filter-button.predictions-filter-button--active {
+        background: #4db788;
+        border-color: #49996f;
+        box-shadow: 0 2px 0 #49996f;
+        color: #fff;
     }
 
     .gameDate {

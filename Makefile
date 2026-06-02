@@ -18,7 +18,7 @@ NEO4J_PASSWORD ?= huitparfait-local
 .PHONY: help setup keys env-local install neo4j-up neo4j-down neo4j-logs \
         dev dev-api dev-auth dev-front dev-kill stop lint test audit ci \
         compose-up compose-down data-wc2026-generate data-wc2026 \
-        data-reset-neo4j data-import-wc2026 data-fresh-wc2026 flags-wc2026
+        data-reset-neo4j data-import-wc2026 data-fresh-wc2026 data-dev-scenario flags-wc2026
 
 help: ## Affiche cette aide
 	@echo "Le Grand 8 : commandes locales"
@@ -157,6 +157,12 @@ data-import-wc2026: ## Importe init-data-2026wc.cql (make neo4j-up avant)
 	fi
 
 data-fresh-wc2026: data-reset-neo4j data-import-wc2026 ## Base vide + import CDM 2026 (recommandé)
+
+data-dev-scenario: ## Scénario de test local (USER_EMAIL=…, option CALCULATE=--calculate)
+	@test -n "$(USER_EMAIL)" || (echo "USER_EMAIL requis, ex. : make data-dev-scenario USER_EMAIL=toi@gmail.com" && exit 1)
+	@$(COMPOSE) $(COMPOSE_FILES) ps -q huitparfait-data | grep -q . \
+		|| (echo "Neo4j ne tourne pas : lance : make neo4j-up" && exit 1)
+	node scripts/seed-dev-scenario.mjs --email "$(USER_EMAIL)" $(CALCULATE)
 
 flags-wc2026: ## Copie les drapeaux SVG (flag-icons) pour le front
 	npm install

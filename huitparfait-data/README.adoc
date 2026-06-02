@@ -59,7 +59,52 @@ Drapeaux front : `make flags-wc2026`.
 
 == Administration (résultats + calcul des points)
 
-Interface : `/admin` (connexion Google requise + mot de passe `ADMIN_PASSWORD`).
+Interface : `/admin` (connexion Google requise + mot de passe `ADMIN_PASSWORD` ou `HTTP_SECRET`).
+
+== Scénario de test local
+
+Pour tester pronostics, matchs passés non notés, résultats et points sans attendre le calendrier réel de la CDM 2026.
+
+=== Prérequis
+
+1. `make neo4j-up`
+2. `make data-fresh-wc2026` (ou `make data-import-wc2026` si la base est déjà vide)
+3. `make dev` puis **une connexion Google** sur http://localhost:3000 (crée ton nœud `:User` en base)
+4. `make data-dev-scenario USER_EMAIL=ton-email@gmail.com`
+
+Option : calculer les points du match 6 tout de suite :
+
+[source,bash]
+----
+make data-dev-scenario USER_EMAIL=ton-email@gmail.com CALCULATE=--calculate
+----
+
+Pour repartir de zéro : `make data-fresh-wc2026` puis relancer le scénario dev.
+
+=== Ce que fait le script
+
+Le script `scripts/seed-dev-scenario.mjs` :
+
+* garde uniquement les **matchs 1 à 10** (supprime les matchs 11–72 pour une UI lisible) ;
+* recale `startsAt` autour de la date du jour ;
+* injecte des pronostics pour ton compte ;
+* pose les scores réels sur les matchs 5 et 6 (les autres passés restent **non notés** pour l’admin).
+
+| Match | Moment | Prono | Score réel | Points |
+|-------|--------|-------|------------|--------|
+| 1 | demain +2 h | non | — | — |
+| 2 | demain +5 h | oui | — | — |
+| 3 | il y a 3 h | oui | — | — |
+| 4 | il y a 5 h | non | — | — |
+| 5 | il y a 2 jours | oui | 2-1 + risquette | à calculer via `/admin` |
+| 6 | il y a 4 jours | oui (2-1 exact) | 2-1 + risquette vraie | avec `CALCULATE=--calculate` |
+| 7–10 | aujourd’hui / demain (mixte) | partiel | — | — |
+
+=== Pages à vérifier
+
+* http://localhost:3000/pronostics/prochains-matchs — badge menu, matchs ouverts/fermés
+* http://localhost:3000/pronostics/matchs-precedents — matchs passés ; résultats du match 6 visibles après 8 h 08 le lendemain (déjà OK avec « il y a 4 jours »)
+* http://localhost:3000/admin — matchs 3 et 4 à renseigner ; calcul des points pour le match 5
 
 == Euro 2016 (historique)
 

@@ -6,7 +6,7 @@
 
         <card>
             <p>Les groupes sont classés selon la <strong>moyenne des points</strong> de leurs membres actifs.</p>
-            <p>Les scores sont mis à jour chaque lendemain de match à <strong>8:08</strong> ;-)</p>
+            <p>Les scores sont mis à jour chaque lendemain de match à <strong>14h08</strong> (8h08 heure de New York ;-)</p>
         </card>
 
         <ranked-group v-for="rankedGroup in groupsRanking.ranking" :ranked-group="rankedGroup"></ranked-group>
