@@ -3,7 +3,7 @@ import {
     areProtagonistsConfirmed,
     enrichGamesWithBracket,
     isGamePredictable,
-} from '../../../huitparfait-shared/src/bracketResolver.js'
+} from '../bracket-shared/bracketResolver.js'
 import { cypher } from '../infra/neo4j.js'
 
 const PREDICTIONS_QUERY = `

@@ -14,6 +14,7 @@
     "test": "NODE_ENV=test node --test test/**/*.test.js",
     "test:watch": "NODE_ENV=test node --test --watch test/**/*.test.js",
     "audit": "npm audit --audit-level=high",
+    "sync:bracket": "node scripts/sync-bracket-shared.mjs",
     "start": "node src/server.js"
   },
   "dependencies": {
