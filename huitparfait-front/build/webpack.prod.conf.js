@@ -34,7 +34,8 @@ module.exports = merge(baseWebpackConfig, {
     new webpack.optimize.UglifyJsPlugin({
       compress: {
         warnings: false
-      }
+      },
+      sourceMap: false,
     }),
     new webpack.optimize.OccurenceOrderPlugin(),
     // extract css into its own file

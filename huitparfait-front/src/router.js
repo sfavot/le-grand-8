@@ -2,6 +2,7 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Rankings from './components/Rankings'
 import Predictions from './components/Predictions'
+import GroupStandings from './components/GroupStandings'
 import GroupList from './components/GroupList'
 import GroupUsers from './components/GroupUsers'
 import GroupRanking from './components/GroupRanking'
@@ -38,6 +39,10 @@ router.map({
         name: 'groupRanking',
         component: GroupRanking,
     },
+    '/pronostics/resultats': {
+        name: 'results',
+        component: GroupStandings,
+    },
     '/pronostics/:period': {
         name: 'predictions',
         component: Predictions,
@@ -73,6 +78,7 @@ router.map({
 })
 
 router.redirect({
+    '/pronostics/classements-poules': '/pronostics/resultats',
     '*': '/',
 })
 

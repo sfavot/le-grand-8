@@ -1,3 +1,4 @@
+import Boom from '@hapi/boom'
 import Joi from 'joi'
 import _ from 'lodash'
 import moment from 'moment'
@@ -5,6 +6,7 @@ import { generateId } from '../infra/utils.js'
 import { cypher, cypherOne } from '../infra/neo4j.js'
 import { emptyIfDeleted } from '../infra/replyUtils.js'
 import { betterGroup } from '../services/groupService.js'
+import { assertGameIsPredictable } from '../services/predictionsService.js'
 import { generateName } from '../services/userService.js'
 
 const httpsUri = Joi.string().uri({ scheme: [/https/] }).allow('', null)
@@ -297,6 +299,13 @@ export const plugin = {
                     }),
                 },
                 handler: async (request, _h) => {
+                    const userId = request.auth.credentials.id
+                    const isPredictable = await assertGameIsPredictable(userId, request.payload.gameId)
+
+                    if (!isPredictable) {
+                        throw Boom.badRequest('Les protagonistes de ce match ne sont pas encore connus')
+                    }
+
                     const pronosticId = generateId()
 
                     return cypherOne(`
@@ -327,7 +336,7 @@ export const plugin = {
                         RETURN p
                         `,
                         {
-                            userId: request.auth.credentials.id,
+                            userId,
                             gameId: request.payload.gameId,
                             predictionScoreTeamA: request.payload.predictionScoreTeamA,
                             predictionScoreTeamB: request.payload.predictionScoreTeamB,

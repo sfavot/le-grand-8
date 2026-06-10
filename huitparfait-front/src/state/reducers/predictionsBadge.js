@@ -1,9 +1,7 @@
 import {
     FETCH_PREDICTIONS_SUCCESS,
     FETCH_UNFILLED_BADGE_SUCCESS,
-    PREDICTION_SAVED,
 } from '../actions/predictions'
-import { countUnfilledOpenGames } from '../../predictionUtils'
 
 const initialState = 0
 
@@ -14,16 +12,13 @@ export default function (state = initialState, action) {
     switch (action.type) {
 
         case FETCH_UNFILLED_BADGE_SUCCESS:
-            return countUnfilledOpenGames(action.predictions)
+            return action.count
 
         case FETCH_PREDICTIONS_SUCCESS:
-            if (NEXT_DAYS_PERIODS.includes(action.period)) {
-                return countUnfilledOpenGames(action.predictions)
+            if (NEXT_DAYS_PERIODS.includes(action.period) && action.unfilledCount != null) {
+                return action.unfilledCount
             }
             return state
-
-        case PREDICTION_SAVED:
-            return Math.max(0, state - 1)
 
         default:
             return state

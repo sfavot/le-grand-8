@@ -5,6 +5,9 @@
   "author": "Suzy Favot (fork; original: huitparfait-2016)",
   "private": true,
   "scripts": {
+    "sync-bracket-shared": "node scripts/sync-bracket-shared.mjs",
+    "predev": "npm run sync-bracket-shared",
+    "prebuild": "npm run sync-bracket-shared",
     "dev": "node build/dev-server.js",
     "build": "node build/build.js",
     "unit": "karma start test/unit/karma.conf.js --single-run",

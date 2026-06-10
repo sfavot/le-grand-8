@@ -19,6 +19,9 @@
                 Prochains matchs
                 <span v-if="unfilledPredictionsCount > 0" class="sub-menuitem-badge">{{ unfilledPredictionsCount }}</span>
             </a>
+            <a class="sub-menuitem" v-link="{ name: 'results', activeClass: 'sub-menuitem--active' }">
+                Résultats
+            </a>
         </div>
         <a class="menuitem" v-link="{ name: 'groupList', activeClass: 'menuitem--active' }">
             <img class="menuitem-icon menuitem-icon--white" src="../assets/groups.svg" alt="">

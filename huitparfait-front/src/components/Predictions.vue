@@ -23,14 +23,21 @@
             <p>Tu peux revenir à l'affichage complet pour consulter ou modifier tes pronostics.</p>
         </card>
 
-        <div class="day" v-for="day in displayedGamesByDayList" track-by="gameDate">
+        <div class="day" v-for="day in displayedDaysWithSections" track-by="gameDate">
 
-            <card-title class="gameDate">{{* day.gameDate | date}}</card-title>
-            <card-list wide class="games">
+            <card-title v-if="!isNextMatchesPage" class="gameDate">{{* day.gameDate | date}}</card-title>
+
+            <div class="phaseSection" v-for="section in day.phaseSections" track-by="phase">
+
+                <card-title v-if="isNextMatchesPage && section.phaseLabel" class="gameDatePhase">
+                    <span class="gameDate">{{* day.gameDate | date }}</span> - {{* section.phaseLabel }}
+                </card-title>
+
+                <card-list wide class="games">
 
                 <card wide class="game"
-                        :class="{ 'game--submissionDisabled': isSubmissionClosed(game), 'game--unsaved' : game.unsaved }"
-                        v-for="game in day.games" track-by="gameId">
+                        :class="gameCardClass(game)"
+                        v-for="game in section.games" track-by="gameId">
 
                     <div class="game-header">
                         <div class="game-name">
@@ -43,12 +50,25 @@
 
                     <div class="game-teams">
                         <div class="game-teams-section">
-                            <img v-if="game.countryCodeTeamA" class="flag"
-                                    :src="flagSrc(game.countryCodeTeamA)"
-                                    @error="onFlagError"/>
-                            <img v-if="!game.countryCodeTeamA" class="flag unknownTeam"
-                                    src="../assets/unknown-team.svg"/>
-                            <div class="game-countryName">{{* game.countryNameTeamA}}</div>
+                            <template v-if="!showBracketTeamSlots(game, 'A')">
+                                <img v-if="game.countryCodeTeamA" class="flag"
+                                        :src="flagSrc(game.countryCodeTeamA)"
+                                        @error="onFlagError"/>
+                                <img v-if="!game.countryCodeTeamA" class="flag unknownTeam"
+                                        src="../assets/unknown-team.svg"/>
+                                <div class="game-countryName">{{* game.countryNameTeamA}}</div>
+                            </template>
+                            <template v-else>
+                                <img class="flag unknownTeam" src="../assets/unknown-team.svg"/>
+                                <div class="game-slotLabel">{{* game.countryNameTeamA}}</div>
+                                <div v-if="game.bracketResolvedTeamA" class="game-resolvedTeam">
+                                    <img class="flag resolvedFlag"
+                                            :src="flagSrc(game.bracketResolvedTeamA.countryCode)"
+                                            @error="onFlagError"/>
+                                    <div class="game-countryName">{{* game.bracketResolvedTeamA.countryName }}</div>
+                                    <div class="game-resolvedSource">{{* bracketResolvedSourceLabel(game.bracketResolvedSourceA) }}</div>
+                                </div>
+                            </template>
                         </div>
                         <div class="game-teams-section">
                             <div v-if="hasScore(game) && isResultPublishable(game)"
@@ -63,28 +83,44 @@
                             </div>
                         </div>
                         <div class="game-teams-section">
-                            <img v-if="game.countryCodeTeamB" class="flag"
-                                    :src="flagSrc(game.countryCodeTeamB)"
-                                    @error="onFlagError"/>
-                            <img v-if="!game.countryCodeTeamB" class="flag unknownTeam"
-                                    src="../assets/unknown-team.svg"/>
-                            <div class="game-countryName">{{* game.countryNameTeamB}}</div>
+                            <template v-if="!showBracketTeamSlots(game, 'B')">
+                                <img v-if="game.countryCodeTeamB" class="flag"
+                                        :src="flagSrc(game.countryCodeTeamB)"
+                                        @error="onFlagError"/>
+                                <img v-if="!game.countryCodeTeamB" class="flag unknownTeam"
+                                        src="../assets/unknown-team.svg"/>
+                                <div class="game-countryName">{{* game.countryNameTeamB}}</div>
+                            </template>
+                            <template v-else>
+                                <img class="flag unknownTeam" src="../assets/unknown-team.svg"/>
+                                <div class="game-slotLabel">{{* game.countryNameTeamB}}</div>
+                                <div v-if="game.bracketResolvedTeamB" class="game-resolvedTeam">
+                                    <img class="flag resolvedFlag"
+                                            :src="flagSrc(game.bracketResolvedTeamB.countryCode)"
+                                            @error="onFlagError"/>
+                                    <div class="game-countryName">{{* game.bracketResolvedTeamB.countryName }}</div>
+                                    <div class="game-resolvedSource">{{* bracketResolvedSourceLabel(game.bracketResolvedSourceB) }}</div>
+                                </div>
+                            </template>
                         </div>
                     </div>
 
+                    <p v-if="showWaitingForTeamsMessage(game)" class="game-waiting">
+                        En attente des qualifiés
+                    </p>
+
+                    <fieldset class="game-form" :disabled="isPredictionInputsDisabled(game)">
                     <div class="game-inputs">
                         <div class="game-scoreInput">
                             <input v-model="game.predictionScoreTeamA" @change="setPredictionUnsaved(game)"
                                     class="game-scoreInputField" type="number" name="goalsTeamA"
-                                    onfocus="this.select()"
-                                    :disabled="isSubmissionClosed(game)"/>
+                                    onfocus="this.select()"/>
                         </div>
                         <div class="game-scoreInput"><!-- Dummy element to align flex items --></div>
                         <div class="game-scoreInput">
                             <input v-model="game.predictionScoreTeamB" @change="setPredictionUnsaved(game)"
                                     class="game-scoreInputField" type="number" name="goalsTeamB"
-                                    onfocus="this.select()"
-                                    :disabled="isSubmissionClosed(game)"/>
+                                    onfocus="this.select()"/>
                         </div>
                     </div>
 
@@ -107,24 +143,21 @@
                                     <div class="game-risk-answerChoice">
                                         <input v-model="game.predictionRiskAnswer" type="radio" :value="true"
                                                 @change="setPredictionUnsaved(game)" name="riskAnswer{{* game.gameId}}"
-                                                id="yes{{* game.gameId}}"
-                                                :disabled="isSubmissionClosed(game)"/>
+                                                id="yes{{* game.gameId}}"/>
                                         <label for="yes{{* game.gameId}}">VRAI</label>
                                     </div>
 
                                     <div class="game-risk-answerChoice">
                                         <input v-model="game.predictionRiskAnswer" type="radio" :value="false"
                                                 @change="setPredictionUnsaved(game)" name="riskAnswer{{* game.gameId}}"
-                                                id="no{{* game.gameId}}"
-                                                :disabled="isSubmissionClosed(game)"/>
+                                                id="no{{* game.gameId}}"/>
                                         <label for="no{{* game.gameId}}">FAUX</label>
                                     </div>
 
                                     <div class="game-risk-answerChoice noAnswer">
                                         <input v-model="game.predictionRiskAnswer" type="radio" :value="null"
                                                 @change="setPredictionUnsaved(game)" name="riskAnswer{{* game.gameId}}"
-                                                id="dunno{{* game.gameId}}"
-                                                :disabled="isSubmissionClosed(game)"/>
+                                                id="dunno{{* game.gameId}}"/>
                                         <label class="game-risk-answerChoice--multiline"
                                                 for="dunno{{* game.gameId}}">Je ne sais pas</label>
                                     </div>
@@ -140,37 +173,35 @@
                                     <div class="game-risk-answerChoice">
                                         <input v-model="game.predictionRiskAmount" type="radio" :value="1"
                                                 @change="setPredictionUnsaved(game)" name="riskAmount{{* game.gameId}}"
-                                                id="riskAmount1{{* game.gameId}}"
-                                                :disabled="isSubmissionClosed(game)"/>
+                                                id="riskAmount1{{* game.gameId}}"/>
                                         <label for="riskAmount1{{* game.gameId}}">1 pt</label>
                                     </div>
 
                                     <div class="game-risk-answerChoice">
                                         <input v-model="game.predictionRiskAmount" type="radio" :value="2"
                                                 @change="setPredictionUnsaved(game)" name="riskAmount{{* game.gameId}}"
-                                                id="riskAmount2{{* game.gameId}}"
-                                                :disabled="isSubmissionClosed(game)"/>
+                                                id="riskAmount2{{* game.gameId}}"/>
                                         <label for="riskAmount2{{* game.gameId}}">2 pts</label>
                                     </div>
 
                                     <div class="game-risk-answerChoice">
                                         <input v-model="game.predictionRiskAmount" type="radio" :value="3"
                                                 @change="setPredictionUnsaved(game)" name="riskAmount{{* game.gameId}}"
-                                                id="riskAmount3{{* game.gameId}}"
-                                                :disabled="isSubmissionClosed(game)"/>
+                                                id="riskAmount3{{* game.gameId}}"/>
                                         <label for="riskAmount3{{* game.gameId}}">3 pts</label>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    </fieldset>
 
                     <div class="game-submitZone">
                         <btn :inactive="game.unsaved !== true || !predictionIsValid(game)"
                                 class="game-submitZone-button"
                                 :class="{ disabled: !predictionIsValid(game) }"
                                 @click="savePrediction(game)"
-                                :disabled="isSubmissionClosed(game)">Enregistrer
+                                :disabled="isPredictionInputsDisabled(game)">Enregistrer
                         </btn>
                         <div class="game-submitZone-savedCheck" v-show="showPredictionSavedTick(game)"></div>
                         <div class="game-pointsExplanation"
@@ -186,6 +217,8 @@
 
                 </card>
             </card-list>
+
+            </div>
         </div>
 
     </div>
@@ -199,7 +232,20 @@
     import moment from 'moment'
     import { flagSrc, onFlagError } from '../flagSrc'
     import { formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
-    import { predictionIsFilled } from '../predictionUtils'
+    import {
+        areProtagonistsConfirmed,
+        hasUnknownProtagonists,
+        isCountableForBadge,
+        isPredictionInputsDisabled as isPredictionFormDisabled,
+        isSubmissionClosed,
+        predictionIsFilled,
+    } from '../predictionUtils'
+    import {
+        applyBracketStateToGame,
+        bracketResolvedSourceLabel,
+        buildPhaseSections,
+        enrichGamesWithBracket,
+    } from '../bracketUtils'
 
     moment.locale('fr')
 
@@ -207,12 +253,51 @@
         data() {
             return {
                 predictions: this.$select('predictions'),
+                predictionsAllGames: this.$select('predictionsAllGames'),
                 gamesByDayList: null,
                 onlyUnfilledGames: false,
                 onlyUnfilledSnapshotByGameId: null,
             }
         },
         computed: {
+            isNextMatchesPage() {
+                return this.$route.params.period === 'prochains-matchs'
+            },
+            bracketMap() {
+                if (!this.isNextMatchesPage || this.predictionsAllGames == null) {
+                    return null
+                }
+
+                return enrichGamesWithBracket(this.predictionsAllGames)
+            },
+            displayedDaysWithSections() {
+                if (this.displayedGamesByDayList == null) {
+                    return null
+                }
+
+                const bracketMap = this.bracketMap
+
+                return this.displayedGamesByDayList.map((day) => {
+                    const games = day.games.map((game) => applyBracketStateToGame(game, bracketMap))
+
+                    if (!this.isNextMatchesPage) {
+                        return {
+                            gameDate: day.gameDate,
+                            phaseSections: [{
+                                phase: null,
+                                phaseLabel: null,
+                                games,
+                            }],
+                        }
+                    }
+
+                    return {
+                        gameDate: day.gameDate,
+                        phaseSections: buildPhaseSections(games)
+                            .filter((section) => section.games.length > 0),
+                    }
+                })
+            },
             showPreviousEmptyState() {
                 return this.$route.params.period === 'matchs-precedents'
                     && this.gamesByDayList != null
@@ -270,19 +355,66 @@
             predictions() {
                 this.syncGamesByDayFromStore()
             },
+            predictionsAllGames() {
+                this.syncGamesByDayFromStore()
+            },
         },
         methods: {
             flagSrc,
             onFlagError,
+            bracketResolvedSourceLabel,
+            isSubmissionClosed,
+            gameCardClass(game) {
+                return {
+                    'game--submissionDisabled': this.isSubmissionClosed(game),
+                    'game--locked': this.isPredictionFormLocked(game),
+                    'game--unsaved': game.unsaved,
+                }
+            },
+            isPredictionFormLocked(game) {
+                if (!this.isNextMatchesPage || this.isSubmissionClosed(game)) {
+                    return false
+                }
+
+                return !areProtagonistsConfirmed(this.bracketMap, game)
+            },
+            showBracketTeamSlots(game, side) {
+                if (!this.isNextMatchesPage) {
+                    return false
+                }
+
+                if (side === 'A') {
+                    return !game.countryCodeTeamA
+                }
+
+                return !game.countryCodeTeamB
+            },
+            hasUnknownTeams(game) {
+                if (!this.isNextMatchesPage) {
+                    return false
+                }
+
+                return hasUnknownProtagonists(game, this.bracketMap)
+            },
+            showWaitingForTeamsMessage(game) {
+                return !this.isSubmissionClosed(game) && this.hasUnknownTeams(game)
+            },
+            isPredictionInputsDisabled(game) {
+                return isPredictionFormDisabled(game, this.bracketMap)
+            },
             syncGamesByDayFromStore() {
                 if (this.predictions == null) {
                     this.gamesByDayList = null
                     return
                 }
+
+                const bracketMap = this.bracketMap
+
                 this.gamesByDayList = _(this.predictions)
                     .map((games, dayKey) => ({
                         gameDate: Number(dayKey),
-                        games: _.cloneDeep(games),
+                        games: _.cloneDeep(games)
+                            .map((game) => applyBracketStateToGame(game, bracketMap)),
                     }))
                     .sortBy('gameDate')
                     .value()
@@ -311,10 +443,6 @@
                 // Show it when the game has just been saved (game.unsaved === false)
                 // Also show it when we've just laoded the page and the prediction is valid (game.unsaved == null but prediction valid)
                 return !this.isResultPublishable(game) && (game.unsaved === false || (game.unsaved == null && this.predictionIsValid(game)))
-            },
-            isSubmissionClosed: function (game) {
-                // Submissions close as soon as the game begins
-                return moment(game.startsAt).isBefore(Date.now())
             },
             isResultPublishable: function (game) {
                 // A result is publishable at 8:08AM the next day of a game
@@ -354,7 +482,7 @@
                 return _(this.gamesByDayList)
                     .map('games')
                     .flatten()
-                    .reject(predictionIsFilled)
+                    .filter((game) => isCountableForBadge(game, this.bracketMap))
                     .map((game) => game.gameId)
                     .keyBy((gameId) => gameId)
                     .mapValues(() => true)
@@ -368,7 +496,9 @@
                     : null
             },
             savePrediction: function (game) {
-                if (game.unsaved !== true || !this.predictionIsValid(game)) {
+                if (this.isPredictionInputsDisabled(game)
+                        || game.unsaved !== true
+                        || !this.predictionIsValid(game)) {
                     return
                 }
 
@@ -434,6 +564,80 @@
 
     .gameDate {
         text-transform: capitalize;
+    }
+
+    .gameDatePhase {
+        text-transform: none;
+    }
+
+    .game-slotLabel {
+        color: #777;
+        font-size: 13px;
+        font-weight: normal;
+        margin-top: 8px;
+    }
+
+    .game-resolvedTeam {
+        margin-top: 10px;
+    }
+
+    .game-resolvedTeam .resolvedFlag {
+        height: 28px;
+    }
+
+    .game-resolvedSource {
+        color: #888;
+        font-size: 12px;
+        font-style: italic;
+        font-weight: normal;
+        margin-top: 4px;
+    }
+
+    .game-waiting {
+        background: #f5f5f5;
+        border-bottom: 1px dashed #ddd;
+        color: #666;
+        font-size: 14px;
+        font-style: italic;
+        margin: 0;
+        padding: 8px 15px;
+        text-align: center;
+    }
+
+    .game-form {
+        border: 0;
+        margin: 0;
+        min-width: 0;
+        padding: 0;
+    }
+
+    .game.game--locked {
+        opacity: 0.92;
+    }
+
+    .game--locked .game-scoreInputField {
+        background: #ddd;
+        color: #888;
+    }
+
+    .game--locked .game-risk-answer {
+        opacity: 0.5;
+    }
+
+    .game--locked .game-risk-answerChoice label {
+        cursor: default;
+        pointer-events: none;
+    }
+
+    .game--locked .game-submitZone-button,
+    .game--locked .game-submitZone-button:disabled {
+        background: #ccc;
+        border-color: #bbb;
+        box-shadow: 0 2px 0 #bbb;
+        color: #888;
+        cursor: default;
+        opacity: 1;
+        pointer-events: none;
     }
 
     .card.game {

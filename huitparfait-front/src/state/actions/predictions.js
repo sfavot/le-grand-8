@@ -2,6 +2,8 @@ import {
     fetchPredictions as apiFetchPredictions,
     savePrediction as apiSavePrediction,
 } from '../../WebApi'
+import { enrichGamesWithBracket, flattenGamesFromApiResponse } from '../../bracketUtils'
+import { countUnfilledOpenGames } from '../../predictionUtils'
 
 export const FETCH_PREDICTIONS = 'FETCH_PREDICTIONS'
 function fetchPredictionsAttempt(period) {
@@ -12,11 +14,14 @@ function fetchPredictionsAttempt(period) {
 }
 
 export const FETCH_PREDICTIONS_SUCCESS = 'FETCH_PREDICTIONS_SUCCESS'
-function fetchPredictionsSuccess(predictions, period) {
+function fetchPredictionsSuccess(predictions, period, bracketMap = null) {
+    const isNextDays = period === 'next-days' || period === 'prochains-matchs'
+
     return {
         type: FETCH_PREDICTIONS_SUCCESS,
         predictions,
         period,
+        unfilledCount: isNextDays ? countUnfilledOpenGames(predictions, bracketMap) : null,
     }
 }
 
@@ -29,26 +34,64 @@ function fetchPredictionsFailure(period) {
 }
 
 export const FETCH_UNFILLED_BADGE_SUCCESS = 'FETCH_UNFILLED_BADGE_SUCCESS'
-function fetchUnfilledBadgeSuccess(predictions) {
+function fetchUnfilledBadgeSuccess(predictions, bracketMap) {
     return {
         type: FETCH_UNFILLED_BADGE_SUCCESS,
-        predictions,
+        count: countUnfilledOpenGames(predictions, bracketMap),
+    }
+}
+
+export const FETCH_ALL_PREDICTIONS_SUCCESS = 'FETCH_ALL_PREDICTIONS_SUCCESS'
+function fetchAllPredictionsSuccess(allGames) {
+    return {
+        type: FETCH_ALL_PREDICTIONS_SUCCESS,
+        allGames,
+    }
+}
+
+export const FETCH_ALL_PREDICTIONS_FAILURE = 'FETCH_ALL_PREDICTIONS_FAILURE'
+function fetchAllPredictionsFailure() {
+    return {
+        type: FETCH_ALL_PREDICTIONS_FAILURE,
     }
 }
 
 const pendingFetches = {}
 let pendingNextDaysFetch = null
 let pendingNextDaysUpdatesPage = false
+let pendingAllGamesFetch = null
+
+function fetchAllGamesShared(dispatch) {
+    if (pendingAllGamesFetch != null) {
+        return pendingAllGamesFetch
+    }
+
+    pendingAllGamesFetch = apiFetchPredictions('all')
+        .then((predictionsByDay) => {
+            const allGames = flattenGamesFromApiResponse(predictionsByDay)
+            dispatch(fetchAllPredictionsSuccess(allGames))
+            return allGames
+        })
+        .catch(() => {
+            dispatch(fetchAllPredictionsFailure())
+            return Promise.reject(new Error('fetch all predictions failed'))
+        })
+        .finally(() => {
+            pendingAllGamesFetch = null
+        })
+
+    return pendingAllGamesFetch
+}
 
 function fetchNextDaysShared(dispatch, updatePageStore) {
     if (pendingNextDaysFetch != null) {
         pendingNextDaysUpdatesPage = pendingNextDaysUpdatesPage || updatePageStore
 
-        return pendingNextDaysFetch.then((predictions) => {
+        return pendingNextDaysFetch.then((result) => {
             if (updatePageStore) {
-                dispatch(fetchPredictionsSuccess(predictions, 'next-days'))
+                dispatch(fetchPredictionsSuccess(result.predictions, 'next-days', result.bracketMap))
             }
-            return predictions
+            return result.predictions
         })
     }
 
@@ -58,15 +101,23 @@ function fetchNextDaysShared(dispatch, updatePageStore) {
         dispatch(fetchPredictionsAttempt('next-days'))
     }
 
-    pendingNextDaysFetch = apiFetchPredictions('next-days')
-        .then((predictions) => {
-            dispatch(fetchUnfilledBadgeSuccess(predictions))
+    const allGamesPromise = fetchAllGamesShared(dispatch)
+
+    pendingNextDaysFetch = Promise.all([
+        apiFetchPredictions('next-days'),
+        allGamesPromise,
+    ])
+        .then(([predictions, allGames]) => {
+            const bracketMap = allGames.length > 0 ? enrichGamesWithBracket(allGames) : null
+            const result = { predictions, bracketMap }
+
+            dispatch(fetchUnfilledBadgeSuccess(predictions, bracketMap))
 
             if (pendingNextDaysUpdatesPage) {
-                dispatch(fetchPredictionsSuccess(predictions, 'next-days'))
+                dispatch(fetchPredictionsSuccess(predictions, 'next-days', bracketMap))
             }
 
-            return predictions
+            return result
         })
         .catch(() => {
             if (pendingNextDaysUpdatesPage) {
@@ -84,6 +135,10 @@ function fetchNextDaysShared(dispatch, updatePageStore) {
 
 export function fetchUnfilledPredictionsBadge() {
     return (dispatch) => fetchNextDaysShared(dispatch, false)
+}
+
+export function fetchAllPredictionsGames() {
+    return (dispatch) => fetchAllGamesShared(dispatch)
 }
 
 export function fetchPredictions(period) {
@@ -144,7 +199,7 @@ function savePredictionFailure() {
 
 export function savePrediction(game) {
 
-    return (dispatch) => {
+    return (dispatch, getState) => {
 
         dispatch(savePredictionAttempt(game))
 
@@ -160,6 +215,17 @@ export function savePrediction(game) {
             .then(() => {
                 dispatch(savePredictionSuccess())
                 dispatch(predictionSaved())
+                return fetchAllGamesShared(dispatch)
+                    .then((allGames) => {
+                        const bracketMap = allGames.length > 0
+                            ? enrichGamesWithBracket(allGames)
+                            : null
+                        const nextPredictions = getState().predictions
+                        if (nextPredictions != null) {
+                            dispatch(fetchUnfilledBadgeSuccess(nextPredictions, bracketMap))
+                        }
+                        return allGames
+                    })
             })
             // fix this with redux
             .catch((err) => {

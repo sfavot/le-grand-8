@@ -116,6 +116,38 @@
     </card>
 
         <card>
+            <h2 class="card-title">Les meilleurs troisièmes (CDM 2026)</h2>
+            <p>
+                Avec <strong>12 poules de 4 équipes</strong>, seules <strong>32 équipes</strong>
+                disputent les 16<sup>e</sup> de finale&nbsp;: les <strong>2 premiers</strong> de chaque poule
+                (24 qualifiés) et les <strong>8 meilleurs troisièmes</strong> parmi les 12.
+                Les 4 troisièmes les moins bien classés sont éliminés.
+            </p>
+            <p>
+                Pour classer les 3<sup>e</sup> entre eux, la FIFA applique&nbsp;:
+                points, différence de buts, buts marqués, fair-play (cartons), puis le classement FIFA
+                (<a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/groups-how-teams-qualify-tie-breakers"
+                        rel="noopener noreferrer">règles officielles CDM 2026</a>).
+                Le Grand 8 ne prend pour l'instant en compte que les trois premiers critères.
+            </p>
+            <p>
+                L'affectation des 8 repêchés en 16<sup>e</sup> n'est pas libre&nbsp;: la FIFA a prédéfini
+                <strong>495 scénarios</strong> (Annexe C du
+                <a href="https://www.wk2026voetbal.nl/wk-2026-reglement.pdf"
+                        rel="noopener noreferrer">règlement officiel</a>)
+                selon quelles poules produisent les 8 meilleurs troisièmes. Chaque 3<sup>e</sup> repêché
+                est alors affecté à <strong>un seul match</strong>.
+                Sur la page <a v-link="{ name: 'results' }">Résultats</a>, le tableau
+                «&nbsp;Meilleurs troisièmes&nbsp;» indique qui est repêché et à quel match il est envoyé.
+            </p>
+            <p>
+                Dans les matchs à élimination directe, un libellé du type
+                «&nbsp;3<sup>e</sup> du Groupe A, B, C, D, F&nbsp;» indique les poules <em>éligibles</em>
+                pour ce créneau&nbsp;; le scénario FIFA en choisit exactement une parmi les 8 qualifiées.
+            </p>
+        </card>
+
+        <card>
             <h2 class="card-title">Règles</h2>
             <p>
                 Vous devez soumettre votre pronostic au moins une minute avant le match.

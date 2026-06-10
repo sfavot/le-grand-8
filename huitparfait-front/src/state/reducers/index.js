@@ -8,6 +8,7 @@ import groupUsers from './groupUsers'
 import groupRanking from './groupRanking'
 import groupsRanking from './groupsRanking'
 import predictions from './predictions'
+import predictionsAllGames from './predictionsAllGames'
 import predictionsBadge from './predictionsBadge'
 import predictionsPeriod from './predictionsPeriod'
 import ranking from './ranking'
@@ -23,6 +24,7 @@ export default combineReducers({
     groupRanking,
     groupsRanking,
     predictions,
+    predictionsAllGames,
     predictionsBadge,
     predictionsPeriod,
     ranking,

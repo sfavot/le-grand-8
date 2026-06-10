@@ -18,7 +18,7 @@ NEO4J_PASSWORD ?= huitparfait-local
 .PHONY: help setup keys env-local install neo4j-up neo4j-down neo4j-logs \
         dev dev-api dev-auth dev-front dev-kill stop lint test audit ci \
         compose-up compose-down data-wc2026-generate data-wc2026 \
-        data-reset-neo4j data-import-wc2026 data-fresh-wc2026 data-dev-scenario flags-wc2026
+        data-reset-neo4j data-import-wc2026 data-import-wc2026-knockout data-fresh-wc2026 data-dev-scenario flags-wc2026
 
 help: ## Affiche cette aide
 	@echo "Le Grand 8 : commandes locales"
@@ -146,17 +146,20 @@ data-import-wc2026: ## Importe init-data-2026wc.cql (make neo4j-up avant)
 	$(COMPOSE) $(COMPOSE_FILES) exec -T huitparfait-data \
 		cypher-shell -u neo4j -p '$(NEO4J_PASSWORD)' \
 		< huitparfait-data/init-data-2026wc.cql
-	@echo "Vérification (attendu : 72 matchs) :"
+	@echo "Vérification (attendu : 104 matchs) :"
 	@count=$$($(COMPOSE) $(COMPOSE_FILES) exec -T huitparfait-data \
 		cypher-shell -u neo4j -p '$(NEO4J_PASSWORD)' \
 		"MATCH (g:Game) RETURN count(g);" 2>/dev/null | tail -1 | tr -d '[:space:]'); \
 	echo "matchs: $$count"; \
-	if [ "$$count" != "72" ]; then \
-		echo "ERREUR : $$count matchs au lieu de 72 : lance : make data-fresh-wc2026"; \
+	if [ "$$count" != "104" ]; then \
+		echo "ERREUR : $$count matchs au lieu de 104 : lance : make data-fresh-wc2026"; \
 		exit 1; \
 	fi
 
-data-fresh-wc2026: data-reset-neo4j data-import-wc2026 ## Base vide + import CDM 2026 (recommandé)
+data-import-wc2026-knockout: ## Ajoute matchs 73–104 sans effacer users/pronos
+	node scripts/import-wc2026-knockout.mjs
+
+data-fresh-wc2026: data-reset-neo4j data-import-wc2026 ## Base vide + import CDM 2026 (efface tout)
 
 data-dev-scenario: ## Scénario de test local (USER_EMAIL=…, option CALCULATE=--calculate)
 	@test -n "$(USER_EMAIL)" || (echo "USER_EMAIL requis, ex. : make data-dev-scenario USER_EMAIL=toi@gmail.com" && exit 1)

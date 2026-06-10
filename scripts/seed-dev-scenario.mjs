@@ -203,7 +203,8 @@ async function deleteExtraGames(session) {
     session,
     `
     MATCH (g:Game)
-    WHERE NOT g.id IN $keepIds
+    WHERE g.phase = 'Groupes'
+      AND NOT g.id IN $keepIds
     DETACH DELETE g
     `,
     { keepIds: KEEP_GAME_IDS },

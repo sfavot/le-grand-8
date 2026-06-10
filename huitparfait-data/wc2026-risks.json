@@ -25,7 +25,23 @@
     { "n": 22, "id": "H1aIS8i4LQ", "text": "Le joueur du match a un numéro pair" },
     { "n": 23, "id": "B10LH8sE87", "text": "Les 6 changements sont effectués" },
     { "n": 24, "id": "BJJPSIi4Um", "text": "Un joueur sort sur civière" },
-    { "n": 25, "id": "rJgPrIoV8X", "text": "But d'un joueur contre son camp" }
+    { "n": 25, "id": "rJgPrIoV8X", "text": "But d'un joueur contre son camp" },
+    { "n": 26, "id": "H1-PSUjVL7", "text": "Les prolongations sont jouées" },
+    { "n": 27, "id": "rJMPrIi4Um", "text": "Plus de fautes commises par l'équipe vainqueur" },
+    { "n": 28, "id": "H1mvSLjV8X", "text": "Plus de fautes commises par l'équipe perdante" },
+    { "n": 29, "id": "S1NDrIsEIm", "text": "Le joueur du match est dans l'équipe vainqueur" },
+    { "n": 30, "id": "HJSwrIs48X", "text": "Le joueur du match est dans l'équipe perdante" },
+    { "n": 31, "id": "ryV_HLjNUQ", "text": "But d'un joueur ayant moins de 25 ans (prolongations incluses, hors tirs aux buts)" },
+    { "n": 32, "id": "r1m_H8oE8X", "text": "But d'un joueur ayant 27 ans ou plus (prolongations incluses, hors tirs aux buts)" },
+    { "n": 33, "id": "ryx_NNj4Im", "text": "Chaque équipe marque au moins un but (prolongations incluses, hors tirs aux buts)" },
+    { "n": 34, "id": "S1Md44iVIX", "text": "Possession de balle à l'avantage de l'équipe qui perd (prolongations incluses, hors tirs aux buts)" },
+    { "n": 35, "id": "SyZu4NoN87", "text": "Possession de balle à l'avantage de l'équipe qui gagne (prolongations incluses, hors tirs aux buts)" },
+    { "n": 36, "id": "HJJdBUiVU7", "text": "Au moins un but après la 70ème minute (hors prolongations et tirs aux buts)" },
+    { "n": 37, "id": "SkCDS8iNU7", "text": "Au moins un but après la 80ème minute (hors prolongations et tirs aux buts)" },
+    { "n": 38, "id": "BkxdBIs4UQ", "text": "Au moins 2 buts d'écart (prolongations incluses, hors tirs aux buts)" },
+    { "n": 39, "id": "SkH_NNs4I7", "text": "Au moins un but de la tête (prolongations et tirs aux buts inclus)" },
+    { "n": 40, "id": "S1rdrUiVU7", "text": "But du pied gauche (prolongations incluses, hors tirs aux buts)" }
   ],
-  "groupStageRiskOrder": [18, 11, 6, 14, 5, 19, 22, 4, 3, 17, 8, 21, 12, 10, 24, 20, 9, 7, 25, 23, 1, 13, 2, 15, 16]
+  "groupStageRiskOrder": [18, 11, 6, 14, 5, 19, 22, 4, 3, 17, 8, 21, 12, 10, 24, 20, 9, 7, 25, 23, 1, 13, 2, 15, 16],
+  "knockoutRiskOrder": [35, 32, 36, 33, 38, 34, 40, 29, 31, 28, 26, 37, 39, 27, 30]
 }
