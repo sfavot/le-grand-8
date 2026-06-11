@@ -456,8 +456,23 @@
             setPredictionUnsaved: function (game) {
                 Vue.set(game, 'unsaved', true)
             },
+            findGameById(gameId) {
+                if (this.gamesByDayList == null) {
+                    return null
+                }
+
+                for (const day of this.gamesByDayList) {
+                    const game = _.find(day.games, { gameId })
+                    if (game != null) {
+                        return game
+                    }
+                }
+
+                return null
+            },
             setPredictionSaved: function (game) {
-                Vue.set(game, 'unsaved', false)
+                const currentGame = this.findGameById(game.gameId) || game
+                Vue.set(currentGame, 'unsaved', false)
             },
             showPredictionSavedTick: function (game) {
                 // Do not show the tick when the results are available
