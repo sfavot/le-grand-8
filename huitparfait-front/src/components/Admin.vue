@@ -2,7 +2,7 @@
     <div class="page--admin">
         <card v-if="!authenticated">
             <h2 class="card-title">Administration</h2>
-            <p>Réservé à l'organisateur : connecte-toi au site, puis saisis le mot de passe admin (non mémorisé après rechargement de la page).</p>
+            <p>Réservé à l'organisateur</p>
             <form class="admin-login" @submit.prevent="login">
                 <label class="admin-label" for="admin-password">Mot de passe</label>
                 <input id="admin-password" class="admin-input" type="password" v-model="password"
