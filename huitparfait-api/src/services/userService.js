@@ -4,8 +4,27 @@ import initAnimalAdj from '../infra/animal-adj/animal-adj.js'
 
 const animalAdj = initAnimalAdj('fr')
 
+const identiconOptions = { width: 70, size: 3 }
+
 export function generateName(id) {
     return animalAdj(id)
+}
+
+export function defaultAvatarUrl(userId) {
+    return generateSVGDataURIString(userId, identiconOptions)
+}
+
+export function formatCurrentUser(user = {}) {
+    return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        anonymousName: user.anonymousName,
+        isAnonymous: user.isAnonymous,
+        avatarUrl: user.avatarUrl ?? null,
+        defaultAvatarUrl: defaultAvatarUrl(user.id),
+        oAuthAvatarUrl: user.oAuthAvatarUrl ?? null,
+    }
 }
 
 export function betterUser(user = {}, transformAnonymous = false) {
@@ -14,14 +33,14 @@ export function betterUser(user = {}, transformAnonymous = false) {
         return {
             id: user.userId,
             name: user.anonymousName,
-            avatarUrl: generateSVGDataURIString(user.userId, { width: 70, size: 3 }),
+            avatarUrl: defaultAvatarUrl(user.userId),
         }
     }
 
     return {
         id: user.userId,
         name: user.userName,
-        avatarUrl: user.avatarUrl,
+        avatarUrl: user.avatarUrl ?? defaultAvatarUrl(user.userId),
     }
 }
 

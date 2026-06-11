@@ -8,7 +8,19 @@ export function fetchCurrentUser() {
 }
 
 export function updateProfile(profile) {
-    return execute('/users/me', { method: 'PUT', body: profile })
+    const body = {
+        name: profile.name,
+        isAnonymous: profile.isAnonymous,
+    }
+
+    const avatarUrl = typeof profile.avatarUrl === 'string' ? profile.avatarUrl.trim() : profile.avatarUrl
+    if (_.startsWith(avatarUrl, 'https://')) {
+        body.avatarUrl = avatarUrl
+    } else {
+        body.avatarUrl = null
+    }
+
+    return execute('/users/me', { method: 'PUT', body })
 }
 
 export function deleteAccount() {

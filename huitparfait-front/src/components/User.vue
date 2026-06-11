@@ -3,8 +3,7 @@
     <card class="user" v-if="user != null">
         <div class="details">
             <div class="avatar--wrapper">
-                <img class="avatar" src="../assets/unknown-user.svg" v-if="user.avatarUrl" :src="user.avatarUrl">
-                <img class="avatar" src="../assets/unknown-user.svg" v-else>
+                <img class="avatar" :src="user.avatarUrl || user.defaultAvatarUrl">
             </div>
             <div class="infos">
                 <div class="name">{{ user.name }}</div>

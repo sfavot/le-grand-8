@@ -7,7 +7,7 @@ import { cypher, cypherOne } from '../infra/neo4j.js'
 import { emptyIfDeleted } from '../infra/replyUtils.js'
 import { betterGroup } from '../services/groupService.js'
 import { assertGameIsPredictable } from '../services/predictionsService.js'
-import { generateName } from '../services/userService.js'
+import { formatCurrentUser, generateName } from '../services/userService.js'
 
 const httpsUri = Joi.string().uri({ scheme: [/https/] }).allow('', null)
 
@@ -42,18 +42,19 @@ export const plugin = {
                                       u.anonymousName    = {anonymousName},
                                       u.email            = {email},
                                       u.avatarUrl        = {avatarUrl},
+                                      u.oAuthAvatarUrl   = {oAuthAvatarUrl},
                                       u.oAuthId          = {oAuthId},
                                       u.oAuthProvider    = {oAuthProvider},
                                       u.lastConnectionAt = timestamp(),
                                       u.isAnonymous      = false
                         ON MATCH SET  u.lastConnectionAt = timestamp(),
                                       u.updatedAt        = timestamp(),
-                                      u.name             = coalesce({name}, u.name),
-                                      u.avatarUrl        = coalesce({avatarUrl}, u.avatarUrl)
+                                      u.oAuthAvatarUrl   = coalesce({oAuthAvatarUrl}, u.oAuthAvatarUrl)
                         RETURN        u.id            AS id,
                                       u.name          AS name,
                                       u.anonymousName AS anonymousName,
                                       u.avatarUrl     AS avatarUrl,
+                                      u.oAuthAvatarUrl AS oAuthAvatarUrl,
                                       u.isAnonymous   AS isAnonymous`,
                         {
                             userId,
@@ -63,6 +64,9 @@ export const plugin = {
                             oAuthProvider: request.payload.oAuthProvider ?? null,
                             anonymousName,
                             avatarUrl: request.payload.avatarUrl || null,
+                            oAuthAvatarUrl: request.payload.oAuthProvider && request.payload.avatarUrl
+                                ? request.payload.avatarUrl
+                                : null,
                         })
                 },
             },
@@ -73,17 +77,21 @@ export const plugin = {
             options: {
                 description: 'Read user infos',
                 tags: ['api'],
-                handler: async (request, _h) => cypherOne(`
+                handler: async (request, _h) => {
+                    const user = await cypherOne(`
                         MATCH (u:User { id: {id} })
                         RETURN u.id            AS id,
                                u.name          AS name,
                                u.email         AS email,
                                u.anonymousName AS anonymousName,
                                u.avatarUrl     AS avatarUrl,
+                               u.oAuthAvatarUrl AS oAuthAvatarUrl,
                                u.isAnonymous   AS isAnonymous`,
                         {
                             id: request.auth.credentials.id,
-                        }),
+                        })
+                    return formatCurrentUser(user)
+                },
             },
         },
         {
@@ -99,7 +107,8 @@ export const plugin = {
                         isAnonymous: Joi.boolean(),
                     }),
                 },
-                handler: async (request, _h) => cypherOne(`
+                handler: async (request, _h) => {
+                    const user = await cypherOne(`
                         MATCH (u:User { id: {userId} })
                         SET u.updatedAt   = timestamp(),
                             u.name        = {userName},
@@ -109,7 +118,8 @@ export const plugin = {
                                u.name          AS name,
                                u.email         AS email,
                                u.anonymousName AS anonymousName,
-                               u.avatarUrl     AS avatarUrl, 
+                               u.avatarUrl     AS avatarUrl,
+                               u.oAuthAvatarUrl AS oAuthAvatarUrl,
                                u.isAnonymous   AS isAnonymous`,
                         {
                             userId: request.auth.credentials.id,
@@ -117,6 +127,8 @@ export const plugin = {
                             userAvatarUrl: request.payload.avatarUrl || null,
                             userIsAnonymous: request.payload.isAnonymous ?? null,
                         })
+                    return formatCurrentUser(user)
+                },
             },
         },
         {

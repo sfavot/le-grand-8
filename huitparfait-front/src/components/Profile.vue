@@ -3,7 +3,7 @@
     <div class="page--profile">
         <card-title>Vous êtes connecté en tant que :</card-title>
 
-        <user :user="user"></user>
+        <user :user="displayUser"></user>
 
         <card-title>Mise à jour du profil :</card-title>
 
@@ -19,6 +19,11 @@
                     <input v-model="profile.avatarUrl" type="text" class="input avatarInput"
                             placeholder="https://les-super-logos.com/monimage.jpg">
                 </label>
+                <p class="avatarRestore" v-if="user.oAuthAvatarUrl && !profile.avatarUrl">
+                    <button type="button" class="avatarRestoreBtn" @click="restoreOAuthAvatar">
+                        Restaurer ma photo de profil Google
+                    </button>
+                </p>
                 <label class="inputLabel">
                     Apparaître anonymement dans le classement général :
                     <input v-model="profile.isAnonymous" type="checkbox" class="checkbox isPublicCheckbox">
@@ -29,7 +34,7 @@
                     Vous apparaîtrez en tant que <strong>{{ user.anonymousName }}</strong>.
                 </div>
                 <div class="btnBar">
-                    <btn :disabled="createGroupInPogress">Mettre à jour le profil</btn>
+                    <btn :disabled="updateProfileInPogress">Mettre à jour le profil</btn>
                 </div>
             </card>
         </form>
@@ -65,12 +70,29 @@
             return {
                 user: this.$select('user'),
                 profile: null,
+                updateProfileInPogress: false,
                 deleteAccountInProgress: false,
             }
         },
         route: {
             data() {
                 store.dispatch(fetchCurrentUser())
+            },
+        },
+        computed: {
+            displayUser() {
+                if (this.user == null) {
+                    return null
+                }
+
+                const customAvatarUrl = this.profile && this.profile.avatarUrl
+                    ? this.profile.avatarUrl
+                    : this.user.avatarUrl
+
+                return {
+                    ...this.user,
+                    avatarUrl: customAvatarUrl || this.user.defaultAvatarUrl,
+                }
             },
         },
         watch: {
@@ -83,22 +105,25 @@
 
                 this.profile = {
                     name: user.name,
-                    avatarUrl: user.avatarUrl,
+                    avatarUrl: user.avatarUrl != null ? user.avatarUrl : '',
                     isAnonymous: user.isAnonymous,
                 }
             },
         },
         methods: {
+            restoreOAuthAvatar() {
+                this.profile.avatarUrl = this.user.oAuthAvatarUrl
+            },
             updateProfile() {
 
-                this.updateGroupInPogress = true
+                this.updateProfileInPogress = true
 
                 store.dispatch(updateProfile(this.profile))
                         .then(() => {
-                            this.updateGroupInPogress = false
+                            this.updateProfileInPogress = false
                         })
                         .catch(() => {
-                            this.updateGroupInPogress = false
+                            this.updateProfileInPogress = false
                         })
             },
             deleteAccount() {
@@ -125,7 +150,7 @@
 
 <style scoped>
 
-    .updateProfileInPogress {
+    .updateProfile--progress {
         cursor: not-allowed;
         opacity: 0.5;
     }
@@ -140,6 +165,22 @@
 
     .input {
         width: 100%;
+    }
+
+    .avatarRestore {
+        margin: 0 0 10px;
+    }
+
+    .avatarRestoreBtn {
+        background-color: #ddd;
+        border: none;
+        border-radius: 4px;
+        box-shadow: 0 2px 0 #49996f;
+        color: #346943;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+        padding: 10px 12px;
     }
 
     .input,
