@@ -46,8 +46,13 @@ export const plugin = {
                             gameId: request.params.gameId,
                             ...request.payload,
                         })
+                        const pronostics = await calculatePronostic()
 
-                        return { ok: true, gameId: updated.gameId }
+                        return {
+                            ok: true,
+                            gameId: updated.gameId,
+                            pronosticsUpdated: pronostics?.length ?? 0,
+                        }
                     },
                 },
             },

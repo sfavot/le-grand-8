@@ -28,8 +28,8 @@ export function fetchGamesToFill() {
         ORDER BY g.startsAt ASC`)
 }
 
-export function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHappened }) {
-    return cypherOne(`
+export async function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHappened }) {
+    const updated = await cypherOne(`
         MATCH (g:Game { id: { gameId } })
         WHERE g.startsAt < timestamp()
         MATCH (ta:Team)-[piga:PLAYS_IN_GAME { order: 1 }]->(g)
@@ -45,4 +45,12 @@ export function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHappened
             goalsTeamB,
             riskHappened,
         })
+
+    await cypher(`
+        MATCH (g:Game { id: { gameId } })<-[:IS_ABOUT_GAME]-(p:Pronostic)
+        REMOVE p.classicPoints, p.riskPoints`,
+        { gameId },
+    )
+
+    return updated
 }

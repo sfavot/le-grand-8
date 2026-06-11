@@ -2,7 +2,7 @@
 
     <div class="page--rankings">
         <card>
-            <p>Les scores et les classements sont mis à jour chaque lendemain de match à <strong>14h08</strong> (8h08 heure de New York ;-)</p>
+            <p>Les scores et les classements sont mis à jour chaque lendemain de match à <strong>8h08</strong> (heure de Paris).</p>
             <p v-if="ranking && ranking.length === 0">
                 Vous n'êtes présent dans aucun groupe.
                 Demandez à vos amis leur lien d'invitation pour rejoindre un groupe ou créez vous même un groupe pour vos amis, famille, collègues...

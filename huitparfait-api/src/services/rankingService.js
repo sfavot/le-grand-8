@@ -22,24 +22,23 @@ export function fetchCommonRankingByCache({ forceUpdate = false }) {
 }
 
 export function calculateCommonRanking() {
+    const eightLimit = getEightLimit()
+
     return cypher(`
         MATCH (u:User)
-        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[IS_ABOUT_GAME]->(game:Game)
-        WHERE game.startsAt < timestamp()
-        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(pp:Pronostic)-[IS_ABOUT_GAME]->(game)
-        WHERE   p.classicPoints IS NOT NULL
-                AND pp.classicPoints = 5
-                AND pp.riskPoints = 3
+        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[:IS_ABOUT_GAME]->(game:Game)
+        WHERE game.startsAt < {eightLimit} AND p.classicPoints IS NOT NULL
         WITH
           u,
           p.classicPoints + p.riskPoints AS score,
-          pp AS perfect
+          CASE WHEN p.classicPoints = 5 AND p.riskPoints = 3 THEN 1 ELSE null END AS perfect
         RETURN
-                u.id           AS userId,
-                SUM(score)     AS totalScore,
-                COUNT(score)   AS nbPredictions,
-                COUNT(perfect) AS nbPerfects
-                ORDER BY totalScore DESC, nbPredictions DESC, nbPerfects DESC`)
+                u.id             AS userId,
+                coalesce(SUM(score), 0) AS totalScore,
+                COUNT(score)     AS nbPredictions,
+                COUNT(perfect)   AS nbPerfects
+                ORDER BY totalScore DESC, nbPredictions DESC, nbPerfects DESC`,
+        { eightLimit })
 }
 
 export function fetchCommonRankingWithPaginate({ page = 1, pageSize = 50 }) {
@@ -157,23 +156,19 @@ export function calculateRanking({ groupId, userId, page = 1, pageSize = 50 }) {
     return cypher(`
         MATCH (me:User { id: {userId} })-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g:Group {id: {groupId}} )
         MATCH (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
-        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[IS_ABOUT_GAME]->(game:Game)
-        WHERE game.startsAt < {eightLimit}
-        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(pp:Pronostic)-[IS_ABOUT_GAME]->(game)
-        WHERE   p.classicPoints IS NOT NULL
-                AND pp.classicPoints = 5
-                AND pp.riskPoints = 3
+        OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[:IS_ABOUT_GAME]->(game:Game)
+        WHERE game.startsAt < {eightLimit} AND p.classicPoints IS NOT NULL
         WITH
           u,
           p.classicPoints + p.riskPoints AS score,
-          pp AS perfect
+          CASE WHEN p.classicPoints = 5 AND p.riskPoints = 3 THEN 1 ELSE null END AS perfect
         RETURN
                 u.id            AS userId,
                 u.name          AS userName,
                 u.anonymousName AS anonymousName,
                 u.avatarUrl     AS avatarUrl,
                 u.isAnonymous   AS isAnonymous,
-                SUM(score) as totalScore,
+                coalesce(SUM(score), 0) as totalScore,
                 COUNT(score) as nbPredictions,
                 COUNT(perfect) AS nbPerfects
                 ORDER BY totalScore DESC, nbPredictions DESC, nbPerfects DESC`,

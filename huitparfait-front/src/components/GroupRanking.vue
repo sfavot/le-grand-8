@@ -5,6 +5,10 @@
         <card-title v-if="group != null && group.id != 'general'">Classement de <em>{{ group.name }}</em>&nbsp;</card-title>
         <card-title v-else>Classement général</em>&nbsp;</card-title>
 
+        <card>
+            <p>Les scores et les classements sont mis à jour chaque lendemain de match à <strong>8h08</strong> (heure de Paris).</p>
+        </card>
+
         <card v-if="canLeaveGroup">
             <p>Vous ne souhaitez plus participer à ce groupe ?</p>
             <div class="btnBar">

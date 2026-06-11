@@ -187,8 +187,12 @@
                     goalsTeamB: Number(game.goalsTeamB),
                     riskHappened: game.riskHappened === true || game.riskHappened === 'true',
                 })
-                    .then(() => {
+                    .then((result) => {
                         game.saveOk = true
+                        const count = result.pronosticsUpdated || 0
+                        if (count > 0) {
+                            this.calculateMessage = `${count} pronostic(s) mis à jour.`
+                        }
                         const index = this.games.indexOf(game)
                         if (index !== -1) {
                             this.games.splice(index, 1)
