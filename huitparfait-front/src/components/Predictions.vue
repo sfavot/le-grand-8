@@ -275,10 +275,8 @@
                     return null
                 }
 
-                const bracketMap = this.bracketMap
-
                 return this.displayedGamesByDayList.map((day) => {
-                    const games = day.games.map((game) => applyBracketStateToGame(game, bracketMap))
+                    const games = day.games
 
                     if (!this.isNextMatchesPage) {
                         return {
@@ -356,7 +354,7 @@
                 this.syncGamesByDayFromStore()
             },
             predictionsAllGames() {
-                this.syncGamesByDayFromStore()
+                this.reapplyBracketStateToGames()
             },
         },
         methods: {
@@ -418,6 +416,29 @@
                     }))
                     .sortBy('gameDate')
                     .value()
+            },
+            reapplyBracketStateToGames() {
+                if (this.gamesByDayList == null) {
+                    this.syncGamesByDayFromStore()
+                    return
+                }
+
+                const bracketMap = this.bracketMap
+
+                this.gamesByDayList = this.gamesByDayList.map((day) => ({
+                    gameDate: day.gameDate,
+                    games: day.games.map((game) => {
+                        const bracketFields = applyBracketStateToGame(game, bracketMap)
+
+                        return Object.assign({}, bracketFields, {
+                            predictionScoreTeamA: game.predictionScoreTeamA,
+                            predictionScoreTeamB: game.predictionScoreTeamB,
+                            predictionRiskAnswer: game.predictionRiskAnswer,
+                            predictionRiskAmount: game.predictionRiskAmount,
+                            unsaved: game.unsaved,
+                        })
+                    }),
+                }))
             },
             gamesByDayListIsEmpty(gamesByDayList) {
                 return _(gamesByDayList).map('games').flatten().isEmpty()
