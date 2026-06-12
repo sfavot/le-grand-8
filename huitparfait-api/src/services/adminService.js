@@ -1,15 +1,22 @@
 import { cypher, cypherOne } from '../infra/neo4j.js'
 
 export function fetchGamesToFill() {
+    return fetchAdminGames({ filled: false })
+}
+
+export function fetchAdminGames({ filled = false } = {}) {
+    const resultsFilter = filled
+        ? 'piga.goals IS NOT NULL AND pigb.goals IS NOT NULL AND ufg.happened IS NOT NULL'
+        : 'piga.goals IS NULL OR pigb.goals IS NULL OR ufg.happened IS NULL'
+    const order = filled ? 'DESC' : 'ASC'
+
     return cypher(`
         MATCH (g:Game)
         WHERE g.startsAt < timestamp()
         MATCH (ta:Team)-[piga:PLAYS_IN_GAME { order: 1 }]->(g)
         MATCH (tb:Team)-[pigb:PLAYS_IN_GAME { order: 2 }]->(g)
         MATCH (r:Risk)-[ufg:USED_FOR_GAME]->(g)
-        WHERE piga.goals IS NULL
-           OR pigb.goals IS NULL
-           OR ufg.happened IS NULL
+        WHERE ${resultsFilter}
         RETURN g.id           AS gameId,
                g.name         AS gameName,
                g.phase        AS phase,
@@ -25,7 +32,7 @@ export function fetchGamesToFill() {
                pigb.goals     AS goalsTeamB,
                r.text         AS riskTitle,
                ufg.happened   AS riskHappened
-        ORDER BY g.startsAt ASC`)
+        ORDER BY g.startsAt ${order}`)
 }
 
 export async function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHappened }) {

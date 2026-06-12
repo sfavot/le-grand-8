@@ -8,15 +8,21 @@ import { calculateRank } from './ranking-rank.js'
 export { calculateRank } from './ranking-rank.js'
 
 let commonRankingCache
+let cachedEightLimit
 
 fetchCommonRankingByCache({}).catch((err) => {
     console.warn('Ranking cache warmup skipped:', err.message)
 })
 
 export function fetchCommonRankingByCache({ forceUpdate = false }) {
-    if (commonRankingCache && !forceUpdate) {
+    const eightLimit = getEightLimit()
+    const cacheIsStale = commonRankingCache != null && cachedEightLimit !== eightLimit
+
+    if (commonRankingCache && !forceUpdate && !cacheIsStale) {
         return commonRankingCache
     }
+
+    cachedEightLimit = eightLimit
     commonRankingCache = calculateCommonRanking()
     return commonRankingCache
 }

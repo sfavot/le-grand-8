@@ -17,8 +17,9 @@ export function clearAdminAuth() {
     adminPassword = null
 }
 
-export function fetchAdminGames() {
-    return adminRequest('/admin/games')
+export function fetchAdminGames({ filled = false } = {}) {
+    const query = filled ? '?filled=true' : ''
+    return adminRequest(`/admin/games${query}`)
 }
 
 export function saveAdminGame(gameId, payload) {

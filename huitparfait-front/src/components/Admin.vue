@@ -22,13 +22,33 @@
                 <btn class="admin-logout" @click="logout">Déconnexion</btn>
             </card>
 
+            <div class="admin-tabs">
+                <btn class="admin-tab" :class="{ 'admin-tab--active': activeTab === 'pending' }"
+                        @click="switchTab('pending')">
+                    À saisir
+                </btn>
+                <btn class="admin-tab" :class="{ 'admin-tab--active': activeTab === 'filled' }"
+                        @click="switchTab('filled')">
+                    Renseignés
+                </btn>
+            </div>
+
+            <card v-if="activeTab === 'filled'">
+                <p>Modifier un résultat recalcule automatiquement les points des pronostics pour ce match.</p>
+            </card>
+
             <card v-if="loading">
                 <p>Chargement des matchs…</p>
             </card>
 
-            <card v-if="!loading && games.length === 0">
+            <card v-if="!loading && games.length === 0 && activeTab === 'pending'">
                 <p><strong>Rien à saisir.</strong></p>
                 <p>Tous les matchs passés ont leurs résultats. Lance le calcul des points si besoin.</p>
+            </card>
+
+            <card v-if="!loading && games.length === 0 && activeTab === 'filled'">
+                <p><strong>Aucun match renseigné.</strong></p>
+                <p>Les matchs dont les résultats ont été saisis apparaîtront ici.</p>
             </card>
 
             <card-list wide v-if="!loading && games.length > 0">
@@ -116,6 +136,7 @@
                 loggingIn: false,
                 loading: false,
                 games: [],
+                activeTab: 'pending',
                 calculating: false,
                 calculateMessage: null,
                 calculateError: null,
@@ -149,12 +170,21 @@
                 clearAdminAuth()
                 this.authenticated = false
                 this.games = []
+                this.activeTab = 'pending'
                 this.calculateMessage = null
                 this.calculateError = null
             },
+            switchTab(tab) {
+                if (this.activeTab === tab) {
+                    return
+                }
+
+                this.activeTab = tab
+                this.loadGames()
+            },
             loadGames() {
                 this.loading = true
-                return fetchAdminGames()
+                return fetchAdminGames({ filled: this.activeTab === 'filled' })
                     .then((games) => {
                         this.games = games.map((game) => ({
                             ...game,
@@ -193,9 +223,11 @@
                         if (count > 0) {
                             this.calculateMessage = `${count} pronostic(s) mis à jour.`
                         }
-                        const index = this.games.indexOf(game)
-                        if (index !== -1) {
-                            this.games.splice(index, 1)
+                        if (this.activeTab === 'pending') {
+                            const index = this.games.indexOf(game)
+                            if (index !== -1) {
+                                this.games.splice(index, 1)
+                            }
                         }
                     })
                     .catch((err) => {
@@ -271,6 +303,31 @@
 
     .admin-toolbar {
         margin-bottom: 16px;
+    }
+
+    .admin-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+
+    @media (min-width: 500px) {
+        .admin-tabs {
+            justify-content: flex-start;
+        }
+    }
+
+    .btn.admin-tab {
+        margin: 0;
+    }
+
+    .btn.admin-tab.admin-tab--active {
+        background: #4db788;
+        border-color: #49996f;
+        box-shadow: 0 2px 0 #49996f;
+        color: #fff;
     }
 
     .admin-logout {
