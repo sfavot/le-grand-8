@@ -47,6 +47,10 @@ router.map({
         name: 'predictions',
         component: Predictions,
     },
+    '/joueurs/:userId/:userSlug': {
+        name: 'userPredictions',
+        component: Predictions,
+    },
     '/groupes': {
         name: 'groupList',
         component: GroupList,

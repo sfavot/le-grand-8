@@ -1,37 +1,65 @@
 <template>
 
-    <card class="rankedPlayer" :class="{ 'connectedPlayer': rankedPlayer.user.id === user.id }">
-        <div class="rankingAvatar">
-            <div class="ranking">{{ rankedPlayer.rank | rank }}</div>
-            <div class="avatar--wrapper">
-                <img class="avatar" :src="rankedPlayer.user.avatarUrl">
-            </div>
-        </div>
-        <div class="nameDetails">
-            <div class="name">{{ rankedPlayer.user.name }}</div>
-            <div class="details">
-                <div class="scorePronos">
-                    <span class="score"><strong>{{ rankedPlayer.stats.totalScore }}</strong>{{ rankedPlayer.stats.totalScore | frenchPlural 'pt' }}</span>
-                    <span class="with">avec</span>
-                    <span class="pronos"><strong>{{ rankedPlayer.stats.nbPredictions }}</strong> {{ rankedPlayer.stats.nbPredictions | frenchPlural 'prono' }}</span>
-                </div>
-                <div class="perfects" :class="{ 'hidden': rankedPlayer.stats.nbPerfects === 0 }">
-                    <strong>{{ rankedPlayer.stats.nbPerfects }}</strong> {{ rankedPlayer.stats.nbPerfects | frenchPlural 'grand 8' }}
+    <card class="rankedPlayer" :class="{ 'connectedPlayer': rankedPlayer.user.id === user.id, 'rankedPlayer--link': true }">
+        <a class="rankedPlayer-link" v-link="userPredictionsLink">
+            <div class="rankingAvatar">
+                <div class="ranking">{{ rankedPlayer.rank | rank }}</div>
+                <div class="avatar--wrapper">
+                    <img class="avatar" :src="rankedPlayer.user.avatarUrl">
                 </div>
             </div>
-        </div>
+            <div class="nameDetails">
+                <div class="name">{{ rankedPlayer.user.name }}</div>
+                <div class="details">
+                    <div class="scorePronos">
+                        <span class="score"><strong>{{ rankedPlayer.stats.totalScore }}</strong>{{ rankedPlayer.stats.totalScore | frenchPlural 'pt' }}</span>
+                        <span class="with">avec</span>
+                        <span class="pronos"><strong>{{ rankedPlayer.stats.nbPredictions }}</strong> {{ rankedPlayer.stats.nbPredictions | frenchPlural 'prono' }}</span>
+                    </div>
+                    <div class="perfects" :class="{ 'hidden': rankedPlayer.stats.nbPerfects === 0 }">
+                        <strong>{{ rankedPlayer.stats.nbPerfects }}</strong> {{ rankedPlayer.stats.nbPerfects | frenchPlural 'grand 8' }}
+                    </div>
+                </div>
+            </div>
+        </a>
     </card>
 
 </template>
 
 <script type="text/babel">
 
+    import _ from 'lodash'
+
     export default {
-        props: ['rankedPlayer'],
+        props: ['rankedPlayer', 'groupId'],
         data() {
             return {
                 user: this.$select('user'),
             }
+        },
+        computed: {
+            userPredictionsLink() {
+                if (this.user != null && this.rankedPlayer.user.id === this.user.id) {
+                    return {
+                        name: 'predictions',
+                        params: { period: 'matchs-precedents' },
+                    }
+                }
+
+                const link = {
+                    name: 'userPredictions',
+                    params: {
+                        userId: this.rankedPlayer.user.id,
+                        userSlug: _.kebabCase(this.rankedPlayer.user.name) || 'joueur',
+                    },
+                }
+
+                if (this.groupId != null && this.groupId !== 'general') {
+                    link.query = { groupId: this.groupId }
+                }
+
+                return link
+            },
         },
     }
 
@@ -44,6 +72,25 @@
         display: flex;
         position: relative;
         overflow: hidden;
+        padding: 0 !important;
+    }
+
+    .rankedPlayer-link {
+        align-items: center;
+        color: inherit;
+        display: flex;
+        flex: 1 1 auto;
+        padding: 15px;
+        text-decoration: none;
+        width: 100%;
+    }
+
+    .rankedPlayer-link:hover {
+        background-color: #f5f5f5;
+    }
+
+    .rankedPlayer.connectedPlayer .rankedPlayer-link:hover {
+        background-color: #ffe;
     }
 
     .rankedPlayer.connectedPlayer {

@@ -1,8 +1,9 @@
 import Joi from 'joi'
 import { cypher, cypherOne } from '../infra/neo4j.js'
-import { shortIdSchema } from '../infra/utils.js'
+import { shortIdSchema, userIdSchema } from '../infra/utils.js'
 import { emptyResponse, emptyIfDeleted } from '../infra/replyUtils.js'
 import { betterGroup } from '../services/groupService.js'
+import { betterUser } from '../services/userService.js'
 
 const httpsUri = Joi.string().uri({ scheme: [/https/] })
 
@@ -162,22 +163,33 @@ export const plugin = {
                             groupId: shortIdSchema,
                         }),
                     },
-                    handler: async (request, _h) => cypher(`
+                    handler: async (request, _h) => {
+                        const users = await cypher(`
                         MATCH (:User { id: {userId} })-[:IS_MEMBER_OF_GROUP { isAdmin: true }]->(g:Group { id: {groupId} })
                         MATCH    (u:User)-[m:IS_MEMBER_OF_GROUP]->(g)
                         WHERE    m.isActive OR coalesce(m.isExcluded, true)
-                        RETURN   u.id        AS id, 
-                                 u.name      AS name, 
-                                 u.avatarUrl AS avatarUrl, 
-                                 m.isAdmin   AS isAdmin, 
-                                 m.isActive  AS isActive,
-                                 m.createdAt AS memberSince
+                        RETURN   u.id            AS userId,
+                                 u.name          AS userName,
+                                 u.anonymousName AS anonymousName,
+                                 u.avatarUrl     AS avatarUrl,
+                                 u.isAnonymous   AS isAnonymous,
+                                 m.isAdmin       AS isAdmin,
+                                 m.isActive      AS isActive,
+                                 m.createdAt     AS memberSince
                         ORDER BY isAdmin,
                                  memberSince DESC`,
-                    {
-                        userId: request.auth.credentials.id,
-                        groupId: request.params.groupId,
-                    }),
+                        {
+                            userId: request.auth.credentials.id,
+                            groupId: request.params.groupId,
+                        })
+
+                        return users.map((user) => ({
+                            ...betterUser(user, false),
+                            isAdmin: user.isAdmin,
+                            isActive: user.isActive,
+                            memberSince: user.memberSince,
+                        }))
+                    },
                 },
             },
             {
@@ -248,7 +260,7 @@ export const plugin = {
                     validate: {
                         params: Joi.object({
                             groupId: shortIdSchema,
-                            userId: shortIdSchema,
+                            userId: userIdSchema,
                         }),
                         payload: Joi.object({
                             isActive: Joi.boolean().required(),

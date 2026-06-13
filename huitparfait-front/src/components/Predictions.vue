@@ -1,17 +1,48 @@
 <template>
     <div class="page--predictions">
 
+        <template v-if="isPreviousMatchesPage && headerUser != null && gamesByDayList != null">
+            <card-title v-if="isReadOnly">Matchs précédents de <em>{{* headerUser.name }}</em>&nbsp;</card-title>
+            <card-title v-else>Mes matchs précédents</card-title>
+
+            <card class="previous-matches-summary">
+                <div class="previous-matches-summary-details">
+                    <div class="previous-matches-summary-avatar--wrapper">
+                        <img class="previous-matches-summary-avatar" :src="headerUser.avatarUrl">
+                    </div>
+                    <div class="previous-matches-summary-infos">
+                        <div class="previous-matches-summary-name">{{* headerUser.name }}</div>
+                        <div class="previous-matches-summary-stats">
+                            <span class="previous-matches-summary-score">
+                                <strong>{{ previousMatchesStats.totalScore }}</strong>{{ previousMatchesStats.totalScore | frenchPlural 'pt' }}
+                            </span>
+                            <span class="previous-matches-summary-with">avec</span>
+                            <span class="previous-matches-summary-pronos">
+                                <strong>{{ previousMatchesStats.nbPredictions }}</strong>
+                                {{ previousMatchesStats.nbPredictions | frenchPlural 'prono' }}
+                            </span>
+                            <span class="previous-matches-summary-perfects"
+                                    v-if="previousMatchesStats.nbPerfects > 0">
+                                · <strong>{{ previousMatchesStats.nbPerfects }}</strong>
+                                {{ previousMatchesStats.nbPerfects | frenchPlural 'grand 8' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </card>
+        </template>
+
         <card v-if="showPreviousEmptyState" class="predictions-empty">
-            <p><strong>Rien ici pour l'instant.</strong></p>
-            <p>Les matchs passés s'afficheront ici une fois leur score renseigné, environ 2 heures après le coup d'envoi.</p>
-            <p class="predictions-empty-link">
+            <p><strong>{{ previousEmptyStateTitle }}</strong></p>
+            <p>{{ previousEmptyStateMessage }}</p>
+            <p v-if="!isReadOnly" class="predictions-empty-link">
                 <link-btn v-link="{ name: 'predictions', params: { period: 'prochains-matchs' } }">
                     Voir les prochains matchs
                 </link-btn>
             </p>
         </card>
 
-        <div v-if="showUnfilledFilterToggle" class="predictions-filter">
+        <div v-if="showUnfilledFilterToggle && !isReadOnly" class="predictions-filter">
             <btn class="predictions-filter-button" :class="{ 'predictions-filter-button--active': onlyUnfilledGames }"
                     @click="toggleOnlyUnfilledGames">
                 Matchs non pronostiqués
@@ -113,7 +144,7 @@
                         {{* waitingForTeamsMessage(game) }}
                     </p>
 
-                    <fieldset class="game-form" :disabled="isPredictionInputsDisabled(game)">
+                    <fieldset class="game-form" :disabled="isPredictionInputsDisabled(game) || isReadOnly">
                     <div class="game-inputs">
                         <div class="game-scoreInput">
                             <input v-model="game.predictionScoreTeamA" @change="setPredictionUnsaved(game)"
@@ -200,7 +231,7 @@
                     </div>
                     </fieldset>
 
-                    <div class="game-submitZone">
+                    <div class="game-submitZone" v-if="!isReadOnly">
                         <btn :inactive="game.unsaved !== true || !predictionIsValid(game)"
                                 class="game-submitZone-button"
                                 :class="{ disabled: !predictionIsValid(game) }"
@@ -219,6 +250,22 @@
                         </div>
                     </div>
 
+                    <div class="game-readOnlyFooter" v-if="isReadOnly">
+                        <div class="game-pointsExplanation"
+                                v-if="isGameFinishedForPeriod(game) && game.points != null && game.points < 8">
+                            {{* game.points}} pts : {{* game.classicPoints}} pts {{* game.riskPoints >= 0 ? '+' : '-'}}
+                            {{* (game.riskPoints || 0) | abs}} pts (risquette)
+                        </div>
+                        <div class="game-pointsExplanation"
+                                v-if="isGameFinishedForPeriod(game) && game.points == 8">
+                            Grand 8 !
+                        </div>
+                        <div class="game-pointsExplanation game-pointsExplanation--none"
+                                v-if="isGameFinishedForPeriod(game) && !hasUserPrediction(game) && game.points == null">
+                            Pas de pronostic
+                        </div>
+                    </div>
+
                 </card>
             </card-list>
 
@@ -232,6 +279,7 @@
     import Vue from 'vue'
     import store from '../state/configureStore'
     import { fetchPredictions, savePrediction } from '../state/actions/predictions'
+    import { fetchUserPredictions as apiFetchUserPredictions } from '../WebApi'
     import _ from 'lodash'
     import { flagSrc, onFlagError } from '../flagSrc'
     import { isGameFinishedForPeriod as checkGameFinishedForPeriod } from '../gameFinishedUtils'
@@ -258,11 +306,55 @@
                 gamesByDayList: null,
                 onlyUnfilledGames: false,
                 onlyUnfilledSnapshotByGameId: null,
+                viewedUser: null,
+                otherPredictions: null,
+                user: this.$select('user'),
             }
         },
         computed: {
+            isReadOnly() {
+                return this.$route.name === 'userPredictions'
+            },
+            isPreviousMatchesPage() {
+                return this.isReadOnly || this.$route.params.period === 'matchs-precedents'
+            },
+            headerUser() {
+                if (this.isReadOnly) {
+                    return this.viewedUser
+                }
+
+                if (this.$route.params.period === 'matchs-precedents' && this.user != null) {
+                    return {
+                        name: this.user.name,
+                        avatarUrl: this.user.avatarUrl || this.user.defaultAvatarUrl,
+                    }
+                }
+
+                return null
+            },
+            previousMatchesStats() {
+                if (this.gamesByDayList == null) {
+                    return {
+                        totalScore: 0,
+                        nbPredictions: 0,
+                        nbPerfects: 0,
+                    }
+                }
+
+                const scoredGames = _(this.gamesByDayList)
+                    .map('games')
+                    .flatten()
+                    .filter((game) => game.points != null)
+                    .value()
+
+                return {
+                    totalScore: _.sumBy(scoredGames, 'points'),
+                    nbPredictions: scoredGames.length,
+                    nbPerfects: scoredGames.filter((game) => game.points === 8).length,
+                }
+            },
             isNextMatchesPage() {
-                return this.$route.params.period === 'prochains-matchs'
+                return !this.isReadOnly && this.$route.params.period === 'prochains-matchs'
             },
             bracketMap() {
                 if (!this.isNextMatchesPage || this.predictionsAllGames == null) {
@@ -298,7 +390,10 @@
                 })
             },
             showPreviousEmptyState() {
-                return this.$route.params.period === 'matchs-precedents' &&
+                const isPreviousPage = this.isReadOnly ||
+                    this.$route.params.period === 'matchs-precedents'
+
+                return isPreviousPage &&
                     this.gamesByDayList != null &&
                     this.gamesByDayListIsEmpty(this.gamesByDayList)
             },
@@ -329,6 +424,16 @@
                     this.displayedGamesByDayList != null &&
                     this.gamesByDayListIsEmpty(this.displayedGamesByDayList)
             },
+            previousEmptyStateTitle() {
+                if (this.isReadOnly && this.viewedUser != null) {
+                    return `Aucun match passé pour ${this.viewedUser.name}.`
+                }
+
+                return 'Rien ici pour l\'instant.'
+            },
+            previousEmptyStateMessage() {
+                return 'Les matchs passés s\'afficheront ici une fois leur score renseigné, environ 2 heures après le coup d\'envoi.'
+            },
         },
         ready() {
             this.syncGamesByDayFromStore()
@@ -337,6 +442,27 @@
             data() {
                 this.onlyUnfilledGames = false
                 this.onlyUnfilledSnapshotByGameId = null
+
+                if (this.$route.name === 'userPredictions') {
+                    this.viewedUser = null
+                    this.otherPredictions = null
+                    this.gamesByDayList = null
+
+                    return apiFetchUserPredictions(
+                        this.$route.params.userId,
+                        'matchs-precedents',
+                        this.$route.query.groupId,
+                    )
+                        .then(({ user, predictions }) => {
+                            this.viewedUser = user
+                            this.otherPredictions = predictions
+                            this.syncGamesByDayFromSource(predictions)
+                        })
+                }
+
+                this.viewedUser = null
+                this.otherPredictions = null
+
                 switch (this.$route.params.period) {
                     case 'matchs-precedents':
                         return store.dispatch(fetchPredictions('previous-days'))
@@ -409,14 +535,17 @@
                 return isPredictionFormDisabled(game, this.bracketMap)
             },
             syncGamesByDayFromStore() {
-                if (this.predictions == null) {
+                this.syncGamesByDayFromSource(this.predictions)
+            },
+            syncGamesByDayFromSource(predictionsByDay) {
+                if (predictionsByDay == null) {
                     this.gamesByDayList = null
                     return
                 }
 
                 const bracketMap = this.bracketMap
 
-                this.gamesByDayList = _(this.predictions)
+                this.gamesByDayList = _(predictionsByDay)
                     .map((games, dayKey) => ({
                         gameDate: Number(dayKey),
                         games: _.cloneDeep(games)
@@ -489,6 +618,9 @@
                 return !this.isGameFinishedForPeriod(game) && (game.unsaved === false || (game.unsaved == null && this.predictionIsValid(game)))
             },
             isGameFinishedForPeriod: checkGameFinishedForPeriod,
+            hasUserPrediction(game) {
+                return game.predictionScoreTeamA != null && game.predictionScoreTeamB != null
+            },
             wasRightAboutRisk: function (game) {
                 if (game.predictionRiskAnswer == null) {
                     return null
@@ -570,6 +702,55 @@
 
     .predictions-empty p {
         margin: 0 0 0.75em;
+    }
+
+    .previous-matches-summary {
+        margin-bottom: 15px;
+    }
+
+    .previous-matches-summary-details {
+        align-items: center;
+        display: flex;
+    }
+
+    .previous-matches-summary-avatar--wrapper {
+        border-radius: 3px;
+        flex-shrink: 0;
+        height: 70px;
+        margin-right: 15px;
+        overflow: hidden;
+        width: 70px;
+    }
+
+    .previous-matches-summary-avatar {
+        display: block;
+        height: 100%;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .previous-matches-summary-name {
+        color: #333;
+        font-size: 20px;
+        font-weight: bold;
+    }
+
+    .previous-matches-summary-stats {
+        color: #777;
+        font-size: 15px;
+        margin-top: 6px;
+    }
+
+    .previous-matches-summary-score {
+        color: #333;
+    }
+
+    .previous-matches-summary-with {
+        margin: 0 0.25em;
+    }
+
+    .previous-matches-summary-perfects {
+        margin-left: 0.25em;
     }
 
     .predictions-empty-link {
@@ -976,6 +1157,27 @@
         font-weight: bold;
         margin-top: 8px;
         text-align: center;
+    }
+
+    .game-readOnlyFooter {
+        border-top: 1px dashed #ddd;
+        bottom: 0;
+        left: 0;
+        padding: 10px;
+        position: absolute;
+        right: 0;
+    }
+
+    @media (min-width: 500px) {
+        .game-readOnlyFooter {
+            background: #EEE;
+            border-top-style: solid;
+        }
+    }
+
+    .game-pointsExplanation--none {
+        color: #888;
+        font-weight: normal;
     }
 
 

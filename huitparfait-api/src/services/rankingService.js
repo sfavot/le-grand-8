@@ -34,10 +34,14 @@ export function calculateCommonRanking() {
         MATCH (u:User)
         OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[:IS_ABOUT_GAME]->(game:Game)
         WHERE game.startsAt < {eightLimit} AND p.classicPoints IS NOT NULL
+        OPTIONAL MATCH (ta:Team)-[:PLAYS_IN_GAME {order: 1}]->(game)
+        OPTIONAL MATCH (tb:Team)-[:PLAYS_IN_GAME {order: 2}]->(game)
         WITH
           u,
-          p.classicPoints + p.riskPoints AS score,
-          CASE WHEN p.classicPoints = 5 AND p.riskPoints = 3 THEN 1 ELSE null END AS perfect
+          CASE WHEN ta IS NOT NULL AND tb IS NOT NULL
+            THEN p.classicPoints + p.riskPoints END AS score,
+          CASE WHEN ta IS NOT NULL AND tb IS NOT NULL
+            AND p.classicPoints = 5 AND p.riskPoints = 3 THEN 1 END AS perfect
         RETURN
                 u.id             AS userId,
                 coalesce(SUM(score), 0) AS totalScore,
@@ -103,8 +107,14 @@ export function calculateGroupsRanking({ userId, page = 1, pageSize = 50 }) {
         WHERE coalesce(g.excludeFromGroupsRanking, false) = false
         MATCH (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
         OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[:IS_ABOUT_GAME]->(game:Game)
-        WHERE game.startsAt < {eightLimit}
-        WITH g, u, coalesce(SUM(p.classicPoints + p.riskPoints), 0) AS userScore
+        WHERE game.startsAt < {eightLimit} AND p.classicPoints IS NOT NULL
+        OPTIONAL MATCH (ta:Team)-[:PLAYS_IN_GAME {order: 1}]->(game)
+        OPTIONAL MATCH (tb:Team)-[:PLAYS_IN_GAME {order: 2}]->(game)
+        WITH g, u,
+          coalesce(SUM(
+            CASE WHEN ta IS NOT NULL AND tb IS NOT NULL
+              THEN p.classicPoints + p.riskPoints END
+          ), 0) AS userScore
         WITH g, AVG(userScore) AS averageScore, count(DISTINCT u) AS memberCount
         OPTIONAL MATCH (me:User { id: {userId} })-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
         RETURN
@@ -164,10 +174,14 @@ export function calculateRanking({ groupId, userId, page = 1, pageSize = 50 }) {
         MATCH (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
         OPTIONAL MATCH (u)<-[:CREATED_BY_USER]-(p:Pronostic)-[:IS_ABOUT_GAME]->(game:Game)
         WHERE game.startsAt < {eightLimit} AND p.classicPoints IS NOT NULL
+        OPTIONAL MATCH (ta:Team)-[:PLAYS_IN_GAME {order: 1}]->(game)
+        OPTIONAL MATCH (tb:Team)-[:PLAYS_IN_GAME {order: 2}]->(game)
         WITH
           u,
-          p.classicPoints + p.riskPoints AS score,
-          CASE WHEN p.classicPoints = 5 AND p.riskPoints = 3 THEN 1 ELSE null END AS perfect
+          CASE WHEN ta IS NOT NULL AND tb IS NOT NULL
+            THEN p.classicPoints + p.riskPoints END AS score,
+          CASE WHEN ta IS NOT NULL AND tb IS NOT NULL
+            AND p.classicPoints = 5 AND p.riskPoints = 3 THEN 1 END AS perfect
         RETURN
                 u.id            AS userId,
                 u.name          AS userName,

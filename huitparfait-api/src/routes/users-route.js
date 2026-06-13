@@ -1,14 +1,11 @@
 import Boom from '@hapi/boom'
 import Joi from 'joi'
-import _ from 'lodash'
-import { generateId } from '../infra/utils.js'
+import { generateId, userIdSchema, groupIdSchema } from '../infra/utils.js'
 import { cypher, cypherOne } from '../infra/neo4j.js'
 import { emptyIfDeleted } from '../infra/replyUtils.js'
 import { betterGroup } from '../services/groupService.js'
-import { assertGameIsPredictable } from '../services/predictionsService.js'
-import { isGameFinishedForPeriod } from '../infra/gameFinishedUtils.js'
-import { displayDayKeyFromStartsAt } from '../infra/gameTimeUtils.js'
-import { formatCurrentUser, generateName } from '../services/userService.js'
+import { assertGameIsPredictable, fetchAllUserPredictions, groupPredictionsByPeriod } from '../services/predictionsService.js'
+import { formatCurrentUser, fetchUserById, formatPublicUser, generateName, areActiveGroupMembers } from '../services/userService.js'
 
 const httpsUri = Joi.string().uri({ scheme: [/https/] }).allow('', null)
 
@@ -208,82 +205,54 @@ export const plugin = {
                 description: 'List games',
                 tags: ['api'],
                 handler: async (request, _h) => {
-                    const predictions = await cypher(`
-                        MATCH          (g:Game)
-                        MATCH          (ta:Team)-[piga:PLAYS_IN_GAME {order: 1}]->(g)
-                        MATCH          (tb:Team)-[pigb:PLAYS_IN_GAME {order: 2}]->(g)
-                        MATCH          (r:Risk)-[ufg:USED_FOR_GAME]->(g)
-                        OPTIONAL MATCH (g)<-[:IS_ABOUT_GAME]-(p:Pronostic)-[:CREATED_BY_USER]->(u:User { id: {userId} })
-                        OPTIONAL MATCH (p)-[sa:PREDICT_SCORE]->(ta)
-                        OPTIONAL MATCH (p)-[sb:PREDICT_SCORE]->(tb)
-                        OPTIONAL MATCH (p)-[pr:PREDICT_RISK]->(r:Risk)
-                        RETURN   g.id            AS gameId,
-                                 g.phase         AS phase,
-                                 g.city          AS city,
-                                 g.name          AS gameName,
-                                 g.stadium       AS stadium,
-                                 g.startsAt      AS startsAt,
-                                 ta.id           AS idTeamA,
-                                 ta.countryCode  AS countryCodeTeamA,
-                                 ta.countryName  AS countryNameTeamA,
-                                 ta.group        AS group,
-                                 tb.id           AS idTeamB,
-                                 tb.countryCode  AS countryCodeTeamB,
-                                 tb.countryName  AS countryNameTeamB,
-                                 piga.goals      AS goalsTeamA,
-                                 pigb.goals      AS goalsTeamB,
-                                 piga.penalties  AS penaltiesTeamA,
-                                 pigb.penalties  AS penaltiesTeamB,
-                                 r.id            AS riskId,
-                                 r.text          AS riskTitle,
-                                 sa.goals        AS predictionScoreTeamA,
-                                 sb.goals        AS predictionScoreTeamB,
-                                 pr.willHappen   AS predictionRiskAnswer,
-                                 pr.amount       AS predictionRiskAmount,
-                                 p.classicPoints AS classicPoints,
-                                 p.riskPoints    AS riskPoints,
-                                 ufg.happened    AS riskHappened
-                        ORDER BY g.startsAt
-                        `,
-                        {
-                            userId: request.auth.credentials.id,
-                        })
+                    const predictions = await fetchAllUserPredictions(request.auth.credentials.id)
 
-                    return _(predictions)
-                        .filter((game) => {
-                            const finished = isGameFinishedForPeriod(game)
+                    return groupPredictionsByPeriod(predictions, request.params.period)
+                },
+            },
+        },
+        {
+            method: 'GET',
+            path: '/api/users/{userId}/predictions/{period}',
+            options: {
+                description: 'Read another user\'s past predictions',
+                tags: ['api'],
+                validate: {
+                    params: Joi.object({
+                        userId: userIdSchema,
+                        period: Joi.string().valid('matchs-precedents', 'previous-days').required(),
+                    }),
+                    query: Joi.object({
+                        groupId: groupIdSchema.optional(),
+                    }).unknown(true),
+                },
+                handler: async (request, _h) => {
+                    const user = await fetchUserById(request.params.userId)
 
-                            if (request.params.period === 'previous-days'
-                                || request.params.period === 'matchs-precedents') {
-                                return finished
-                            }
+                    if (user == null) {
+                        throw Boom.notFound()
+                    }
 
-                            if (request.params.period === 'next-days'
-                                || request.params.period === 'prochains-matchs') {
-                                return !finished
-                            }
+                    let transformAnonymous = true
 
-                            return true
-                        })
-                        .thru((allPredictions) => {
-                            if (request.params.period === 'previous-days'
-                                || request.params.period === 'matchs-precedents') {
-                                return _(allPredictions).slice().reverse().value()
-                            }
+                    if (request.query.groupId != null && request.query.groupId !== 'general') {
+                        const viewerId = request.auth.credentials.id
+                        const inSameGroup = await areActiveGroupMembers(
+                            request.query.groupId,
+                            [viewerId, request.params.userId],
+                        )
 
-                            return allPredictions
-                        })
-                        .map((game) => {
-                            game.predictionRiskAmount = game.predictionRiskAmount || 3
+                        if (inSameGroup) {
+                            transformAnonymous = false
+                        }
+                    }
 
-                            if (game.classicPoints != null) {
-                                game.points = game.classicPoints + (game.riskPoints || 0)
-                            }
+                    const predictions = await fetchAllUserPredictions(request.params.userId)
 
-                            return game
-                        })
-                        .groupBy((game) => displayDayKeyFromStartsAt(game.startsAt))
-                        .value()
+                    return {
+                        user: formatPublicUser(user, { transformAnonymous }),
+                        predictions: groupPredictionsByPeriod(predictions, request.params.period),
+                    }
                 },
             },
         },

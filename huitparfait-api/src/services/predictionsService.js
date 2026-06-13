@@ -5,6 +5,8 @@ import {
     isGamePredictable,
 } from '../bracket-shared/bracketResolver.js'
 import { cypher } from '../infra/neo4j.js'
+import { isGameFinishedForPeriod } from '../infra/gameFinishedUtils.js'
+import { displayDayKeyFromStartsAt } from '../infra/gameTimeUtils.js'
 
 const PREDICTIONS_QUERY = `
     MATCH          (g:Game)
@@ -44,17 +46,45 @@ const PREDICTIONS_QUERY = `
     ORDER BY g.startsAt
 `
 
+function enrichPredictionGame(game) {
+    game.predictionRiskAmount = game.predictionRiskAmount || 3
+
+    if (game.classicPoints != null) {
+        game.points = game.classicPoints + (game.riskPoints || 0)
+    }
+
+    return game
+}
+
 export function fetchAllUserPredictions(userId) {
     return cypher(PREDICTIONS_QUERY, { userId })
-        .then((predictions) => predictions.map((game) => {
-            game.predictionRiskAmount = game.predictionRiskAmount || 3
+        .then((predictions) => predictions.map(enrichPredictionGame))
+}
 
-            if (game.classicPoints != null) {
-                game.points = game.classicPoints + (game.riskPoints || 0)
+export function groupPredictionsByPeriod(predictions, period) {
+    return _(predictions)
+        .filter((game) => {
+            const finished = isGameFinishedForPeriod(game)
+
+            if (period === 'previous-days' || period === 'matchs-precedents') {
+                return finished
             }
 
-            return game
-        }))
+            if (period === 'next-days' || period === 'prochains-matchs') {
+                return !finished
+            }
+
+            return true
+        })
+        .thru((allPredictions) => {
+            if (period === 'previous-days' || period === 'matchs-precedents') {
+                return _(allPredictions).slice().reverse().value()
+            }
+
+            return allPredictions
+        })
+        .groupBy((game) => displayDayKeyFromStartsAt(game.startsAt))
+        .value()
 }
 
 export async function assertGameIsPredictable(userId, gameId) {

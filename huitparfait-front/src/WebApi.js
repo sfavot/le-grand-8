@@ -94,6 +94,20 @@ export function fetchPredictions(period) {
     return execute(`/users/me/predictions/${period}`)
 }
 
+export function fetchUserPredictions(userId, period = 'matchs-precedents', groupId = null) {
+    const normalizedGroupId = normalizeGroupIdQuery(groupId)
+    const query = normalizedGroupId != null ? `?groupId=${encodeURIComponent(normalizedGroupId)}` : ''
+    return execute(`/users/${userId}/predictions/${period}${query}`)
+}
+
+function normalizeGroupIdQuery(groupId) {
+    if (groupId == null || groupId === '' || groupId === 'general') {
+        return null
+    }
+
+    return groupId
+}
+
 export function savePrediction(newPrediction) {
     return execute('/users/me/predictions', { method: 'POST', body: newPrediction })
 }

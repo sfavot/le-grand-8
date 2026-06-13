@@ -1,5 +1,5 @@
 import { generateSVGDataURIString } from 'identicons'
-import { cypher } from '../infra/neo4j.js'
+import { cypher, cypherOne } from '../infra/neo4j.js'
 import initAnimalAdj from '../infra/animal-adj/animal-adj.js'
 
 const animalAdj = initAnimalAdj('fr')
@@ -28,20 +28,50 @@ export function formatCurrentUser(user = {}) {
 }
 
 export function betterUser(user = {}, transformAnonymous = false) {
+    const userId = user.userId ?? user.id
 
     if (user.isAnonymous && transformAnonymous) {
         return {
-            id: user.userId,
+            id: userId,
             name: user.anonymousName,
-            avatarUrl: defaultAvatarUrl(user.userId),
+            avatarUrl: defaultAvatarUrl(userId),
         }
     }
 
     return {
-        id: user.userId,
-        name: user.userName,
-        avatarUrl: user.avatarUrl ?? defaultAvatarUrl(user.userId),
+        id: userId,
+        name: user.userName ?? user.name,
+        avatarUrl: user.avatarUrl ?? defaultAvatarUrl(userId),
     }
+}
+
+/** Profil visible par les autres joueurs : jamais d’email ni de nom réel si anonyme. */
+export function formatPublicUser(user = {}, { transformAnonymous = true } = {}) {
+    return betterUser(user, transformAnonymous)
+}
+
+export function fetchUserById(userId) {
+    return cypherOne(`
+        MATCH (u:User { id: { userId } })
+        RETURN
+                u.id            AS userId,
+                u.name          AS userName,
+                u.anonymousName AS anonymousName,
+                u.avatarUrl     AS avatarUrl,
+                u.isAnonymous   AS isAnonymous`, {
+        userId,
+    })
+}
+
+export function areActiveGroupMembers(groupId, userIds) {
+    return cypherOne(`
+        MATCH (g:Group { id: { groupId } })
+        MATCH (u:User)-[:IS_MEMBER_OF_GROUP { isActive: true }]->(g)
+        WHERE u.id IN { userIds }
+        RETURN count(DISTINCT u.id) AS memberCount`, {
+        groupId,
+        userIds,
+    }).then((result) => result != null && result.memberCount === userIds.length)
 }
 
 export function fetchUsersWithIds(userIds = []) {

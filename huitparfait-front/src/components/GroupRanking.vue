@@ -16,7 +16,9 @@
             </div>
         </card>
 
-        <ranked-player v-for="rankedPlayer in groupRanking.ranking" :ranked-player="rankedPlayer"></ranked-player>
+        <ranked-player v-for="rankedPlayer in groupRanking.ranking"
+                :ranked-player="rankedPlayer"
+                :group-id="group != null ? group.id : null"></ranked-player>
 
         <div v-show="loaders === 0 && groupRanking.ranking.length === 0"
             class="noPlayerOnThisPage">
