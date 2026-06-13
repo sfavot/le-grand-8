@@ -1,12 +1,12 @@
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 import _ from 'lodash'
-import moment from 'moment'
 import { generateId } from '../infra/utils.js'
 import { cypher, cypherOne } from '../infra/neo4j.js'
 import { emptyIfDeleted } from '../infra/replyUtils.js'
 import { betterGroup } from '../services/groupService.js'
 import { assertGameIsPredictable } from '../services/predictionsService.js'
+import { displayDayKeyFromStartsAt } from '../infra/gameTimeUtils.js'
 import { formatCurrentUser, generateName } from '../services/userService.js'
 
 const httpsUri = Joi.string().uri({ scheme: [/https/] }).allow('', null)
@@ -249,17 +249,17 @@ export const plugin = {
                         })
 
                     const allDates = _(predictions)
-                        .map((game) => moment(game.startsAt).startOf('day').valueOf())
+                        .map((game) => displayDayKeyFromStartsAt(game.startsAt))
                         .uniq()
                         .value()
 
-                    const today = moment().startOf('day').valueOf()
+                    const today = displayDayKeyFromStartsAt(Date.now())
                     const nextDay = _(allDates).find((day) => day >= today)
                     const previousDay = _(allDates).slice().reverse().find((day) => day < today)
 
                     return _(predictions)
                         .filter((game) => {
-                            const dayOfGame = moment(game.startsAt).startOf('day').valueOf()
+                            const dayOfGame = displayDayKeyFromStartsAt(game.startsAt)
 
                             if (request.params.period === 'previous-days'
                                 || request.params.period === 'matchs-precedents') {
@@ -290,7 +290,7 @@ export const plugin = {
 
                             return game
                         })
-                        .groupBy((game) => moment(game.startsAt).startOf('day').valueOf())
+                        .groupBy((game) => displayDayKeyFromStartsAt(game.startsAt))
                         .value()
                 },
             },

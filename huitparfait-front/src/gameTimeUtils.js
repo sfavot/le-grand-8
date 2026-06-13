@@ -117,8 +117,11 @@ function formatTimeZoneName(date, timeZone) {
         .formatToParts(date)
         .find((p) => p.type === 'timeZoneName')
 
-    if (shortName != null && /^[A-Z]{2,5}$/.test(shortName.value)) {
-        return shortName.value
+    if (shortName != null && shortName.value) {
+        const value = shortName.value
+        if (/^[A-Z]{2,5}$/.test(value)) {
+            return value
+        }
     }
 
     const offset = new Intl.DateTimeFormat('en-US', {
@@ -128,7 +131,7 @@ function formatTimeZoneName(date, timeZone) {
         .formatToParts(date)
         .find((p) => p.type === 'timeZoneName')
 
-    if (offset != null) {
+    if (offset != null && offset.value) {
         return offset.value.replace(/^GMT/, 'UTC')
     }
 
@@ -179,6 +182,61 @@ function formatVenueClock(date, timeZone) {
 export function timezoneForCity(city) {
     const resolved = resolveScheduleCity(city)
     return resolved != null ? resolved.timeZone : null
+}
+
+export const DISPLAY_TIMEZONE = 'Europe/Paris'
+
+function calendarDateToZoneMidnightMs(date, timeZone) {
+    const [year, month, day] = date.split('-').map(Number)
+    const guessUtc = Date.UTC(year, month - 1, day, 0, 0, 0)
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    })
+    const parts = Object.fromEntries(
+        formatter.formatToParts(new Date(guessUtc)).map((p) => [p.type, p.value]),
+    )
+    const asUtc = Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+        0,
+    )
+    const offset = asUtc - guessUtc
+    return guessUtc - offset
+}
+
+/** Epoch ms du début de journée (heure française) pour un coup d’envoi. */
+export function displayDayKeyFromStartsAt(startsAt) {
+    const date = parseStartsAt(startsAt)
+    if (date == null) {
+        return null
+    }
+
+    const dateKey = calendarDateKey(date, DISPLAY_TIMEZONE)
+    return calendarDateToZoneMidnightMs(dateKey, DISPLAY_TIMEZONE)
+}
+
+export function formatDisplayDate(dayKey) {
+    const timestamp = Number(dayKey)
+    const date = new Date(timestamp)
+    if (isNaN(date.getTime())) {
+        return ''
+    }
+
+    return new Intl.DateTimeFormat('fr-FR', {
+        timeZone: DISPLAY_TIMEZONE,
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+    }).format(date)
 }
 
 export const KNOWN_CITIES = Object.keys(CITY_TIMEZONES).sort()
@@ -266,7 +324,64 @@ export function formatVenueTimeZoneLabel(startsAt, city) {
         return null
     }
 
-    return formatTimeZoneName(date, timeZone)
+    return formatTimeZoneName(date, timeZone) || timeZone
+}
+
+export function normalizeScheduleTime(time) {
+    if (time == null || time === '') {
+        return ''
+    }
+    const match = String(time).trim().match(/^(\d{2}):(\d{2})/)
+    return match ? `${match[1]}:${match[2]}` : ''
+}
+
+/**
+ * Prévisualisation admin : fuseau du lieu + équivalent Paris.
+ */
+export function buildSchedulePreview(date, time, city) {
+    const resolved = resolveScheduleCity(city)
+    const timeZone = resolved != null ? resolved.timeZone : null
+    const normalizedTime = normalizeScheduleTime(time)
+
+    if (timeZone == null) {
+        return {
+            knownCity: false,
+            timeZone: '',
+            venueLabel: '',
+            parisPreview: '',
+            valid: false,
+        }
+    }
+
+    if (!date || !normalizedTime || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+            || !/^\d{2}:\d{2}$/.test(normalizedTime)) {
+        return {
+            knownCity: true,
+            timeZone,
+            venueLabel: '',
+            parisPreview: '',
+            valid: false,
+        }
+    }
+
+    const startsAt = venueDateTimeToStartsAtMs(date, normalizedTime, resolved.city)
+    if (startsAt == null) {
+        return {
+            knownCity: true,
+            timeZone,
+            venueLabel: '',
+            parisPreview: '',
+            valid: false,
+        }
+    }
+
+    return {
+        knownCity: true,
+        timeZone,
+        venueLabel: formatVenueTimeZoneLabel(startsAt, resolved.city) || '',
+        parisPreview: formatTimeInZone(startsAt, DISPLAY_TIMEZONE) || '',
+        valid: true,
+    }
 }
 
 /**

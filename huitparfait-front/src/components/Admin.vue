@@ -175,20 +175,7 @@
                         </label>
                     </div>
 
-                    <div class="admin-timezone-info" v-if="isKnownScheduleCity(game)">
-                        <p>Fuseau du lieu : <strong>{{* scheduleVenueTzLabel(game) }}</strong>
-                            ({{* timezoneForCity(game.editCity) }})</p>
-                        <p v-if="scheduleParisPreview(game)">
-                            Équivalent Paris : {{* scheduleParisPreview(game) }}
-                        </p>
-                        <p v-if="!hasValidScheduleDateTime(game)" class="admin-timezone-hint">
-                            Saisis une date et une heure valides pour prévisualiser l’équivalent Paris.
-                        </p>
-                    </div>
-                    <p class="admin-message admin-message--error"
-                            v-if="!isKnownScheduleCity(game) && game.editCity">
-                        Ville inconnue — choisis une ville de la liste pour gérer le fuseau horaire.
-                    </p>
+                    <admin-schedule-tz :city="game.editCity" :date="game.editDate" :time="game.editTime"/>
 
                     <p class="admin-message admin-message--error" v-if="game.saveError">{{* game.saveError }}</p>
                     <p class="admin-message admin-message--ok" v-if="game.saveOk">Enregistré.</p>
@@ -204,15 +191,14 @@
 <script type="text/babel">
     import moment from 'moment'
     import 'moment/locale/fr'
+    import AdminScheduleTz from './AdminScheduleTz'
     import { flagSrc, onFlagError } from '../flagSrc'
     import {
         KNOWN_CITIES,
+        buildSchedulePreview,
         canonicalCityName,
-        formatTimeInZone,
-        formatVenueTimeZoneLabel,
+        normalizeScheduleTime,
         startsAtToVenueDateTime,
-        timezoneForCity,
-        venueDateTimeToStartsAtMs,
     } from '../gameTimeUtils'
     import {
         calculateAdminPoints,
@@ -273,6 +259,9 @@
     }
 
     export default {
+        components: {
+            AdminScheduleTz,
+        },
         data() {
             return {
                 authenticated: false,
@@ -287,7 +276,6 @@
                 calculating: false,
                 calculateMessage: null,
                 calculateError: null,
-                knownCities: KNOWN_CITIES,
             }
         },
         computed: {
@@ -317,70 +305,20 @@
         methods: {
             flagSrc,
             onFlagError,
-            timezoneForCity,
             formatDate(startsAt) {
                 return moment(startsAt).format('dddd D MMMM YYYY [à] HH[h]mm')
             },
-            normalizeScheduleCity(city) {
-                return canonicalCityName(city) || (city == null ? '' : String(city).trim().replace(/\s+/g, ' '))
-            },
-            isKnownScheduleCity(game) {
-                return canonicalCityName(game.editCity) != null
-            },
-            clearScheduleSaveError(game) {
-                game.saveError = null
-                game.saveOk = false
-            },
             scheduleCityOptions(game) {
-                const options = this.knownCities.slice()
-                const current = this.normalizeScheduleCity(game.editCity)
+                const options = KNOWN_CITIES.slice()
+                const current = canonicalCityName(game.editCity) || game.editCity
                 if (current && options.indexOf(current) === -1) {
                     options.unshift(current)
                 }
                 return options
             },
-            hasValidScheduleDateTime(game) {
-                const date = game.editDate
-                const time = this.normalizeScheduleTime(game.editTime)
-                if (!date || !time) {
-                    return false
-                }
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                    return false
-                }
-                if (!/^\d{2}:\d{2}$/.test(time)) {
-                    return false
-                }
-                return venueDateTimeToStartsAtMs(date, time, this.normalizeScheduleCity(game.editCity)) != null
-            },
-            normalizeScheduleTime(time) {
-                if (time == null || time === '') {
-                    return ''
-                }
-                const match = String(time).trim().match(/^(\d{2}):(\d{2})/)
-                return match ? `${match[1]}:${match[2]}` : ''
-            },
-            scheduleVenueTzLabel(game) {
-                if (!this.hasValidScheduleDateTime(game)) {
-                    return null
-                }
-                const startsAt = venueDateTimeToStartsAtMs(
-                    game.editDate,
-                    this.normalizeScheduleTime(game.editTime),
-                    this.normalizeScheduleCity(game.editCity),
-                )
-                return formatVenueTimeZoneLabel(startsAt, this.normalizeScheduleCity(game.editCity))
-            },
-            scheduleParisPreview(game) {
-                if (!this.hasValidScheduleDateTime(game)) {
-                    return null
-                }
-                const startsAt = venueDateTimeToStartsAtMs(
-                    game.editDate,
-                    this.normalizeScheduleTime(game.editTime),
-                    this.normalizeScheduleCity(game.editCity),
-                )
-                return formatTimeInZone(startsAt, 'Europe/Paris')
+            clearScheduleSaveError(game) {
+                game.saveError = null
+                game.saveOk = false
             },
             login() {
                 this.loginError = null
@@ -490,12 +428,12 @@
                     })
             },
             saveScheduleGame(game) {
-                const city = this.normalizeScheduleCity(game.editCity)
+                const city = canonicalCityName(game.editCity) || game.editCity
                 if (canonicalCityName(game.editCity) == null) {
                     game.saveError = 'Ville inconnue — choisis une ville de la liste.'
                     return
                 }
-                if (!this.hasValidScheduleDateTime(game)) {
+                if (!buildSchedulePreview(game.editDate, game.editTime, city).valid) {
                     game.saveError = 'Date et heure sont obligatoires.'
                     return
                 }
@@ -510,7 +448,7 @@
                     stadium: game.editStadium,
                     city,
                     date: game.editDate,
-                    time: this.normalizeScheduleTime(game.editTime),
+                    time: normalizeScheduleTime(game.editTime),
                 })
                     .then((result) => {
                         game.saveOk = true
@@ -519,10 +457,10 @@
                         game.phase = updated.phase
                         game.stadium = updated.stadium
                         game.city = updated.city
-                        game.editCity = updated.city
                         game.startsAt = updated.startsAt
                         const venue = startsAtToVenueDateTime(updated.startsAt, updated.city)
                         if (venue != null) {
+                            game.editCity = updated.city
                             game.editDate = venue.date
                             game.editTime = venue.time
                         }
@@ -709,28 +647,5 @@
     .admin-schedule-field .admin-input {
         margin-bottom: 0;
         margin-top: 4px;
-    }
-
-    .admin-timezone-info {
-        background: #f4f8f6;
-        border-radius: 6px;
-        color: #444;
-        font-size: 0.9em;
-        margin-bottom: 12px;
-        padding: 10px 12px;
-    }
-
-    .admin-timezone-info p {
-        margin: 0 0 4px;
-    }
-
-    .admin-timezone-info p:last-child {
-        margin-bottom: 0;
-    }
-
-    .admin-timezone-hint {
-        color: #666;
-        font-size: 0.85em;
-        font-style: italic;
     }
 </style>

@@ -235,7 +235,7 @@
     import _ from 'lodash'
     import moment from 'moment'
     import { flagSrc, onFlagError } from '../flagSrc'
-    import { formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
+    import { formatDisplayDate, formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
     import {
         areProtagonistsConfirmed,
         hasUnknownProtagonists,
@@ -559,11 +559,7 @@
         },
         filters: {
             date: function (dayKey) {
-                const timestamp = Number(dayKey)
-                if (isNaN(timestamp)) {
-                    return ''
-                }
-                return moment(timestamp).format('dddd Do MMMM')
+                return formatDisplayDate(dayKey)
             },
             time: function (startsAt) {
                 return formatLocalTime(startsAt)

@@ -64,6 +64,63 @@ export function timezoneForCity(city) {
     return resolved != null ? resolved.timeZone : null
 }
 
+export const DISPLAY_TIMEZONE = 'Europe/Paris'
+
+function calendarDateKey(timestamp, timeZone) {
+    const date = new Date(Number(timestamp))
+    if (isNaN(date.getTime())) {
+        return null
+    }
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(date)
+    const year = parts.find((p) => p.type === 'year').value
+    const month = parts.find((p) => p.type === 'month').value
+    const day = parts.find((p) => p.type === 'day').value
+    return `${year}-${month}-${day}`
+}
+
+function calendarDateToZoneMidnightMs(date, timeZone) {
+    const [year, month, day] = date.split('-').map(Number)
+    const guessUtc = Date.UTC(year, month - 1, day, 0, 0, 0)
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    })
+    const parts = Object.fromEntries(
+        formatter.formatToParts(new Date(guessUtc)).map((p) => [p.type, p.value]),
+    )
+    const asUtc = Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+        Number(parts.hour),
+        Number(parts.minute),
+        0,
+    )
+    const offset = asUtc - guessUtc
+    return guessUtc - offset
+}
+
+/** Epoch ms du début de journée (heure française) pour un coup d’envoi. */
+export function displayDayKeyFromStartsAt(startsAt) {
+    const dateKey = calendarDateKey(startsAt, DISPLAY_TIMEZONE)
+    if (dateKey == null) {
+        return null
+    }
+
+    return calendarDateToZoneMidnightMs(dateKey, DISPLAY_TIMEZONE)
+}
+
 /**
  * Date et heure locales (fuseau du lieu) → epoch ms.
  */
