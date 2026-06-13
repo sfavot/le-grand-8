@@ -51,22 +51,24 @@
                     <div class="game-teams">
                         <div class="game-teams-section">
                             <template v-if="!showBracketTeamSlots(game, 'A')">
-                                <img v-if="game.countryCodeTeamA" class="flag"
-                                        :src="flagSrc(game.countryCodeTeamA)"
+                                <img v-if="game.bracketDisplayTeamA" class="flag"
+                                        :src="flagSrc(game.bracketDisplayTeamA.countryCode)"
                                         @error="onFlagError"/>
-                                <img v-if="!game.countryCodeTeamA" class="flag unknownTeam"
+                                <img v-if="!game.bracketDisplayTeamA" class="flag unknownTeam"
                                         src="../assets/unknown-team.svg"/>
-                                <div class="game-countryName">{{* game.countryNameTeamA}}</div>
+                                <div class="game-countryName">{{* game.bracketDisplayTeamA ? game.bracketDisplayTeamA.countryName : game.countryNameTeamA }}</div>
                             </template>
                             <template v-else>
                                 <img class="flag unknownTeam" src="../assets/unknown-team.svg"/>
                                 <div class="game-slotLabel">{{* game.countryNameTeamA}}</div>
-                                <div v-if="game.bracketResolvedTeamA" class="game-resolvedTeam">
+                                <div v-for="candidate in game.bracketCandidatesTeamA" class="game-resolvedTeam"
+                                        track-by="source">
                                     <img class="flag resolvedFlag"
-                                            :src="flagSrc(game.bracketResolvedTeamA.countryCode)"
+                                            :src="flagSrc(candidate.team.countryCode)"
                                             @error="onFlagError"/>
-                                    <div class="game-countryName">{{* game.bracketResolvedTeamA.countryName }}</div>
-                                    <div class="game-resolvedSource">{{* bracketResolvedSourceLabel(game.bracketResolvedSourceA) }}</div>
+                                    <div class="game-countryName">{{* candidate.team.countryName }}</div>
+                                    <div v-if="bracketResolvedSourceLabel(candidate.source)"
+                                            class="game-resolvedSource">{{* bracketResolvedSourceLabel(candidate.source) }}</div>
                                 </div>
                             </template>
                         </div>
@@ -84,29 +86,31 @@
                         </div>
                         <div class="game-teams-section">
                             <template v-if="!showBracketTeamSlots(game, 'B')">
-                                <img v-if="game.countryCodeTeamB" class="flag"
-                                        :src="flagSrc(game.countryCodeTeamB)"
+                                <img v-if="game.bracketDisplayTeamB" class="flag"
+                                        :src="flagSrc(game.bracketDisplayTeamB.countryCode)"
                                         @error="onFlagError"/>
-                                <img v-if="!game.countryCodeTeamB" class="flag unknownTeam"
+                                <img v-if="!game.bracketDisplayTeamB" class="flag unknownTeam"
                                         src="../assets/unknown-team.svg"/>
-                                <div class="game-countryName">{{* game.countryNameTeamB}}</div>
+                                <div class="game-countryName">{{* game.bracketDisplayTeamB ? game.bracketDisplayTeamB.countryName : game.countryNameTeamB }}</div>
                             </template>
                             <template v-else>
                                 <img class="flag unknownTeam" src="../assets/unknown-team.svg"/>
                                 <div class="game-slotLabel">{{* game.countryNameTeamB}}</div>
-                                <div v-if="game.bracketResolvedTeamB" class="game-resolvedTeam">
+                                <div v-for="candidate in game.bracketCandidatesTeamB" class="game-resolvedTeam"
+                                        track-by="source">
                                     <img class="flag resolvedFlag"
-                                            :src="flagSrc(game.bracketResolvedTeamB.countryCode)"
+                                            :src="flagSrc(candidate.team.countryCode)"
                                             @error="onFlagError"/>
-                                    <div class="game-countryName">{{* game.bracketResolvedTeamB.countryName }}</div>
-                                    <div class="game-resolvedSource">{{* bracketResolvedSourceLabel(game.bracketResolvedSourceB) }}</div>
+                                    <div class="game-countryName">{{* candidate.team.countryName }}</div>
+                                    <div v-if="bracketResolvedSourceLabel(candidate.source)"
+                                            class="game-resolvedSource">{{* bracketResolvedSourceLabel(candidate.source) }}</div>
                                 </div>
                             </template>
                         </div>
                     </div>
 
                     <p v-if="showWaitingForTeamsMessage(game)" class="game-waiting">
-                        En attente des qualifiés
+                        {{* waitingForTeamsMessage(game) }}
                     </p>
 
                     <fieldset class="game-form" :disabled="isPredictionInputsDisabled(game)">
@@ -238,7 +242,6 @@
         isCountableForBadge,
         isPredictionInputsDisabled as isPredictionFormDisabled,
         isSubmissionClosed,
-        predictionIsFilled,
     } from '../predictionUtils'
     import {
         applyBracketStateToGame,
@@ -297,14 +300,14 @@
                 })
             },
             showPreviousEmptyState() {
-                return this.$route.params.period === 'matchs-precedents'
-                    && this.gamesByDayList != null
-                    && this.gamesByDayListIsEmpty(this.gamesByDayList)
+                return this.$route.params.period === 'matchs-precedents' &&
+                    this.gamesByDayList != null &&
+                    this.gamesByDayListIsEmpty(this.gamesByDayList)
             },
             showUnfilledFilterToggle() {
-                return this.$route.params.period === 'prochains-matchs'
-                    && this.gamesByDayList != null
-                    && !this.gamesByDayListIsEmpty(this.gamesByDayList)
+                return this.$route.params.period === 'prochains-matchs' &&
+                    this.gamesByDayList != null &&
+                    !this.gamesByDayListIsEmpty(this.gamesByDayList)
             },
             displayedGamesByDayList() {
                 if (this.gamesByDayList == null || this.onlyUnfilledGames !== true) {
@@ -324,9 +327,9 @@
                     .value()
             },
             showOnlyUnfilledEmptyState() {
-                return this.onlyUnfilledGames === true
-                    && this.displayedGamesByDayList != null
-                    && this.gamesByDayListIsEmpty(this.displayedGamesByDayList)
+                return this.onlyUnfilledGames === true &&
+                    this.displayedGamesByDayList != null &&
+                    this.gamesByDayListIsEmpty(this.displayedGamesByDayList)
             },
         },
         ready() {
@@ -381,11 +384,7 @@
                     return false
                 }
 
-                if (side === 'A') {
-                    return !game.countryCodeTeamA
-                }
-
-                return !game.countryCodeTeamB
+                return side === 'A' ? game.bracketSlotUncertainA : game.bracketSlotUncertainB
             },
             hasUnknownTeams(game) {
                 if (!this.isNextMatchesPage) {
@@ -395,7 +394,18 @@
                 return hasUnknownProtagonists(game, this.bracketMap)
             },
             showWaitingForTeamsMessage(game) {
-                return !this.isSubmissionClosed(game) && this.hasUnknownTeams(game)
+                if (this.isSubmissionClosed(game) || !this.isNextMatchesPage) {
+                    return false
+                }
+
+                return this.hasUnknownTeams(game) || this.isPredictionFormLocked(game)
+            },
+            waitingForTeamsMessage(game) {
+                if (this.hasUnknownTeams(game)) {
+                    return 'En attente des qualifiés'
+                }
+
+                return 'Pronostic possible quand les qualifiés seront officiels'
             },
             isPredictionInputsDisabled(game) {
                 return isPredictionFormDisabled(game, this.bracketMap)
@@ -527,14 +537,14 @@
             toggleOnlyUnfilledGames() {
                 const nextState = !this.onlyUnfilledGames
                 this.onlyUnfilledGames = nextState
-                this.onlyUnfilledSnapshotByGameId = nextState
-                    ? this.buildOnlyUnfilledSnapshotByGameId()
-                    : null
+                this.onlyUnfilledSnapshotByGameId = nextState ?
+                    this.buildOnlyUnfilledSnapshotByGameId() :
+                    null
             },
             savePrediction: function (game) {
-                if (this.isPredictionInputsDisabled(game)
-                        || game.unsaved !== true
-                        || !this.predictionIsValid(game)) {
+                if (this.isPredictionInputsDisabled(game) ||
+                        game.unsaved !== true ||
+                        !this.predictionIsValid(game)) {
                     return
                 }
 

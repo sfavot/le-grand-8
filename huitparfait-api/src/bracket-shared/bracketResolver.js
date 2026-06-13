@@ -1,10 +1,10 @@
 import { parseSlotLabel } from './bracketSlotParser.js'
 import {
-    getQualifyingThirdGroupsKey,
-    resolveBestThird,
-    resolveGroupRank,
+    pickPrimaryCandidate,
+    resolveBestThirdCandidates,
+    resolveGroupRankCandidates,
 } from './groupStandings.js'
-import { getMatchWinner, isKnockoutPhase } from './knockoutWinner.js'
+import { getMatchWinner, getMatchWinnerCandidates, getMatchWinnerFromPrediction, isKnockoutPhase } from './knockoutWinner.js'
 
 /**
  * Flatten API response grouped by day into a single array of games.
@@ -31,21 +31,23 @@ function buildTeamSlotState(label, countryCode, countryName, teamId) {
         countryName: countryName || null,
         resolved: null,
         source: null,
+        candidates: [],
     }
 }
 
-function applyResolved(slot, resolved, source) {
-    if (resolved == null) {
-        return slot
-    }
+function applyCandidates(slot, candidates) {
+    const primary = pickPrimaryCandidate(candidates)
 
     return Object.assign({}, slot, {
-        resolved: {
-            countryCode: resolved.countryCode,
-            countryName: resolved.countryName,
-            id: resolved.id,
-        },
-        source,
+        candidates,
+        resolved: primary != null
+            ? {
+                countryCode: primary.team.countryCode,
+                countryName: primary.team.countryName,
+                id: primary.team.id,
+            }
+            : null,
+        source: primary != null ? primary.source : null,
     })
 }
 
@@ -53,89 +55,40 @@ function isGameStarted(game, now = Date.now()) {
     return game.startsAt <= now
 }
 
-function resolveTeamSlot(slot, countryCode, countryName, teamId, context, game) {
-    const base = buildTeamSlotState(countryName, countryCode, countryName, teamId)
-
-    if (countryCode) {
-        return applyResolved(base, {
-            countryCode,
-            countryName,
-            id: teamId,
-        }, 'db')
+function teamFromCandidate(slot, source) {
+    if (slot.candidates == null || slot.candidates.length === 0) {
+        return slot.resolved
     }
 
-    const cacheKey = teamId || countryName
-    if (context.resolutionCache.has(cacheKey)) {
-        const cached = context.resolutionCache.get(cacheKey)
-        return applyResolved(base, cached.resolved, cached.source)
+    const direct = slot.candidates.find((candidate) => candidate.source === source)
+    if (direct != null) {
+        return direct.team
     }
 
-    const parsed = parseSlotLabel(countryName)
-    if (parsed == null) {
-        context.resolutionCache.set(cacheKey, { resolved: null, source: null })
-        return base
+    if (source === 'partialResult') {
+        const fallback = slot.candidates.find((candidate) => (
+            candidate.source === 'partialResult'
+            || candidate.source === 'result'
+            || candidate.source === 'db'
+        ))
+        return fallback != null ? fallback.team : slot.resolved
     }
 
-    let result = null
-
-    if (parsed.type === 'groupRank') {
-        result = resolveGroupRank(context.allGames, parsed.rank, parsed.group)
-    } else if (parsed.type === 'bestThird') {
-        const matchNumber = game != null ? parseMatchNumber(game.gameName) : null
-        result = resolveBestThird(
-            context.allGames,
-            parsed.groups,
-            matchNumber,
-            context.qualifyingThirdGroupsKey,
-        )
-    } else if (parsed.type === 'winner') {
-        result = resolveWinnerMatch(context, parsed.matchNumber)
-    } else if (parsed.type === 'loser') {
-        result = resolveLoserMatch(context, parsed.matchNumber)
+    if (source === 'prediction') {
+        const fallback = slot.candidates.find((candidate) => candidate.source === 'prediction')
+        return fallback != null ? fallback.team : null
     }
 
-    if (result == null || result.team == null) {
-        context.resolutionCache.set(cacheKey, { resolved: null, source: null })
-        return base
-    }
-
-    const resolved = {
-        countryCode: result.team.countryCode,
-        countryName: result.team.countryName,
-        id: result.team.id,
-    }
-
-    context.resolutionCache.set(cacheKey, { resolved, source: result.source })
-    return applyResolved(base, resolved, result.source)
+    return slot.resolved
 }
 
-function resolveWinnerMatch(context, matchNumber) {
-    const feederGame = context.gamesByMatchNumber.get(matchNumber)
-    if (feederGame == null) {
-        return null
-    }
-
-    const bracketState = context.bracketStates.get(feederGame.gameId)
-    if (bracketState == null) {
-        return null
-    }
-
-    const gameWithResolvedTeams = buildGameWithResolvedTeams(feederGame, bracketState)
-
-    const winner = getMatchWinner(gameWithResolvedTeams, isKnockoutPhase(feederGame.phase))
-    if (winner == null) {
-        return null
-    }
-
-    return {
-        team: winner.team,
-        source: winner.source,
-    }
-}
-
-function buildGameWithResolvedTeams(feederGame, bracketState) {
-    const resolvedA = bracketState.teamA.resolved
-    const resolvedB = bracketState.teamB.resolved
+function buildGameWithResolvedTeams(feederGame, bracketState, source = null) {
+    const resolvedA = source != null
+        ? teamFromCandidate(bracketState.teamA, source)
+        : bracketState.teamA.resolved
+    const resolvedB = source != null
+        ? teamFromCandidate(bracketState.teamB, source)
+        : bracketState.teamB.resolved
 
     return Object.assign({}, feederGame, {
         countryCodeTeamA: (resolvedA && resolvedA.countryCode) || feederGame.countryCodeTeamA,
@@ -147,41 +100,136 @@ function buildGameWithResolvedTeams(feederGame, bracketState) {
     })
 }
 
-function resolveLoserMatch(context, matchNumber) {
+function resolveWinnerMatchCandidates(context, matchNumber) {
     const feederGame = context.gamesByMatchNumber.get(matchNumber)
     if (feederGame == null) {
-        return null
+        return []
     }
 
     const bracketState = context.bracketStates.get(feederGame.gameId)
     if (bracketState == null) {
-        return null
+        return []
     }
 
-    const gameWithResolvedTeams = buildGameWithResolvedTeams(feederGame, bracketState)
+    const isKO = isKnockoutPhase(feederGame.phase)
+    const candidates = []
 
-    const winner = getMatchWinner(gameWithResolvedTeams, isKnockoutPhase(feederGame.phase))
-    if (winner == null) {
-        return null
+    const resultGame = buildGameWithResolvedTeams(feederGame, bracketState, 'partialResult')
+    for (const candidate of getMatchWinnerCandidates(resultGame, isKO)) {
+        if (candidate.source === 'result') {
+            candidates.push(candidate)
+        }
     }
 
-    const loserSide = winner.side === 'A' ? 'B' : 'A'
-    const loserTeam = loserSide === 'A'
-        ? {
-            countryCode: gameWithResolvedTeams.countryCodeTeamA,
-            countryName: gameWithResolvedTeams.countryNameTeamA,
-            id: gameWithResolvedTeams.idTeamA,
+    const predictionGame = buildGameWithResolvedTeams(feederGame, bracketState, 'prediction')
+    for (const candidate of getMatchWinnerCandidates(predictionGame, isKO)) {
+        if (candidate.source === 'prediction') {
+            candidates.push(candidate)
         }
-        : {
-            countryCode: gameWithResolvedTeams.countryCodeTeamB,
-            countryName: gameWithResolvedTeams.countryNameTeamB,
-            id: gameWithResolvedTeams.idTeamB,
+    }
+
+    return candidates
+}
+
+function resolveLoserMatchCandidates(context, matchNumber) {
+    const feederGame = context.gamesByMatchNumber.get(matchNumber)
+    if (feederGame == null) {
+        return []
+    }
+
+    const bracketState = context.bracketStates.get(feederGame.gameId)
+    if (bracketState == null) {
+        return []
+    }
+
+    const isKO = isKnockoutPhase(feederGame.phase)
+    const candidates = []
+
+    const resultGame = buildGameWithResolvedTeams(feederGame, bracketState, 'partialResult')
+    const resultWinner = getMatchWinner(resultGame, isKO)
+    if (resultWinner != null) {
+        const loserSide = resultWinner.side === 'A' ? 'B' : 'A'
+        candidates.push({
+            team: teamFromSide(resultGame, loserSide),
+            source: 'result',
+        })
+    }
+
+    const predictionGame = buildGameWithResolvedTeams(feederGame, bracketState, 'prediction')
+    const predictionWinner = getMatchWinnerFromPrediction(predictionGame)
+    if (predictionWinner != null) {
+        const loserSide = predictionWinner.side === 'A' ? 'B' : 'A'
+        candidates.push({
+            team: teamFromSide(predictionGame, loserSide),
+            source: 'prediction',
+        })
+    }
+
+    return candidates
+}
+
+function teamFromSide(game, side) {
+    if (side === 'A') {
+        return {
+            countryCode: game.countryCodeTeamA,
+            countryName: game.countryNameTeamA,
+            id: game.idTeamA,
         }
+    }
 
     return {
-        team: loserTeam,
-        source: winner.source,
+        countryCode: game.countryCodeTeamB,
+        countryName: game.countryNameTeamB,
+        id: game.idTeamB,
     }
+}
+
+function resolveTeamSlot(countryCode, countryName, teamId, context, game) {
+    const base = buildTeamSlotState(countryName, countryCode, countryName, teamId)
+
+    if (countryCode) {
+        return applyCandidates(base, [{
+            team: {
+                countryCode,
+                countryName,
+                id: teamId,
+            },
+            source: 'db',
+        }])
+    }
+
+    const parsed = parseSlotLabel(countryName)
+    const cacheKey = parsed != null && parsed.type === 'bestThird' && game != null
+        ? `${teamId || countryName}#${parseMatchNumber(game.gameName) || game.gameId}`
+        : (teamId || countryName)
+    if (context.resolutionCache.has(cacheKey)) {
+        return applyCandidates(base, context.resolutionCache.get(cacheKey))
+    }
+
+    if (parsed == null) {
+        context.resolutionCache.set(cacheKey, [])
+        return applyCandidates(base, [])
+    }
+
+    let candidates = []
+
+    if (parsed.type === 'groupRank') {
+        candidates = resolveGroupRankCandidates(context.allGames, parsed.rank, parsed.group)
+    } else if (parsed.type === 'bestThird') {
+        const matchNumber = game != null ? parseMatchNumber(game.gameName) : null
+        candidates = resolveBestThirdCandidates(
+            context.allGames,
+            parsed.groups,
+            matchNumber,
+        )
+    } else if (parsed.type === 'winner') {
+        candidates = resolveWinnerMatchCandidates(context, parsed.matchNumber)
+    } else if (parsed.type === 'loser') {
+        candidates = resolveLoserMatchCandidates(context, parsed.matchNumber)
+    }
+
+    context.resolutionCache.set(cacheKey, candidates)
+    return applyCandidates(base, candidates)
 }
 
 function parseMatchNumber(gameName) {
@@ -216,12 +264,10 @@ export function enrichGamesWithBracket(allGames, now = Date.now()) {
         gamesByMatchNumber,
         resolutionCache: new Map(),
         bracketStates: new Map(),
-        qualifyingThirdGroupsKey: getQualifyingThirdGroupsKey(sortedGames),
     }
 
     for (const game of sortedGames) {
         const teamA = resolveTeamSlot(
-            null,
             game.countryCodeTeamA,
             game.countryNameTeamA,
             game.idTeamA,
@@ -229,7 +275,6 @@ export function enrichGamesWithBracket(allGames, now = Date.now()) {
             game,
         )
         const teamB = resolveTeamSlot(
-            null,
             game.countryCodeTeamB,
             game.countryNameTeamB,
             game.idTeamB,
@@ -250,12 +295,10 @@ export function enrichGamesWithBracket(allGames, now = Date.now()) {
     }
 
     context.resolutionCache.clear()
-    context.qualifyingThirdGroupsKey = getQualifyingThirdGroupsKey(sortedGames)
 
     for (const game of sortedGames) {
         const state = context.bracketStates.get(game.gameId)
         state.teamA = resolveTeamSlot(
-            null,
             game.countryCodeTeamA,
             game.countryNameTeamA,
             game.idTeamA,
@@ -263,7 +306,6 @@ export function enrichGamesWithBracket(allGames, now = Date.now()) {
             game,
         )
         state.teamB = resolveTeamSlot(
-            null,
             game.countryCodeTeamB,
             game.countryNameTeamB,
             game.idTeamB,

@@ -1,4 +1,5 @@
 import { cypher, cypherOne } from '../infra/neo4j.js'
+import { canonicalCityName, venueDateTimeToStartsAtMs } from '../infra/gameTimeUtils.js'
 
 export function fetchGamesToFill() {
     return fetchAdminGames({ filled: false })
@@ -33,6 +34,64 @@ export function fetchAdminGames({ filled = false } = {}) {
                r.text         AS riskTitle,
                ufg.happened   AS riskHappened
         ORDER BY g.startsAt ${order}`)
+}
+
+export function fetchAdminGamesSchedule() {
+    return cypher(`
+        MATCH (g:Game)
+        MATCH (ta:Team)-[:PLAYS_IN_GAME { order: 1 }]->(g)
+        MATCH (tb:Team)-[:PLAYS_IN_GAME { order: 2 }]->(g)
+        RETURN g.id           AS gameId,
+               g.name         AS gameName,
+               g.phase        AS phase,
+               g.city         AS city,
+               g.stadium      AS stadium,
+               g.startsAt     AS startsAt,
+               ta.countryCode AS countryCodeTeamA,
+               ta.countryName AS countryNameTeamA,
+               ta.group       AS group,
+               tb.countryCode AS countryCodeTeamB,
+               tb.countryName AS countryNameTeamB
+        ORDER BY g.startsAt ASC`)
+}
+
+export async function updateGameSchedule({ gameId, gameName, phase, stadium, city, date, time }) {
+    const canonicalCity = canonicalCityName(city)
+    if (canonicalCity == null) {
+        throw new Error(`Ville inconnue pour le fuseau horaire : ${city}`)
+    }
+
+    const startsAt = venueDateTimeToStartsAtMs(date, time, canonicalCity)
+
+    const setClauses = [
+        'g.startsAt = { startsAt }',
+        'g.stadium = { stadium }',
+        'g.city = { city }',
+        'g.updatedAt = timestamp()',
+    ]
+    const params = { gameId, startsAt, stadium, city: canonicalCity }
+
+    if (gameName != null) {
+        setClauses.push('g.name = { gameName }')
+        params.gameName = gameName
+    }
+    if (phase != null) {
+        setClauses.push('g.phase = { phase }')
+        params.phase = phase
+    }
+
+    const updated = await cypherOne(`
+        MATCH (g:Game { id: { gameId } })
+        SET ${setClauses.join(',\n            ')}
+        RETURN g.id       AS gameId,
+               g.name     AS gameName,
+               g.phase    AS phase,
+               g.city     AS city,
+               g.stadium  AS stadium,
+               g.startsAt AS startsAt`,
+        params)
+
+    return updated
 }
 
 export async function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHappened }) {

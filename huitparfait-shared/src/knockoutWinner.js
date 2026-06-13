@@ -26,6 +26,55 @@ function hasPredictionScore(game) {
     return game.predictionScoreTeamA != null && game.predictionScoreTeamB != null
 }
 
+function winnerFromPredictionScore(game) {
+    const goalsA = game.predictionScoreTeamA
+    const goalsB = game.predictionScoreTeamB
+
+    if (goalsA > goalsB) {
+        return { side: 'A', team: teamFromSide(game, 'A'), source: 'prediction' }
+    }
+
+    if (goalsA < goalsB) {
+        return { side: 'B', team: teamFromSide(game, 'B'), source: 'prediction' }
+    }
+
+    return null
+}
+
+export function getMatchWinnerFromPrediction(game) {
+    if (!hasPredictionScore(game)) {
+        return null
+    }
+
+    return winnerFromPredictionScore(game)
+}
+
+export function getMatchWinnerCandidates(game, isKnockout = false) {
+    const candidates = []
+
+    if (hasActualScore(game)) {
+        const winner = getMatchWinner(game, isKnockout)
+        if (winner != null) {
+            candidates.push({
+                team: winner.team,
+                source: 'result',
+            })
+        }
+    }
+
+    if (hasPredictionScore(game)) {
+        const winner = winnerFromPredictionScore(game)
+        if (winner != null) {
+            candidates.push({
+                team: winner.team,
+                source: 'prediction',
+            })
+        }
+    }
+
+    return candidates
+}
+
 export function getMatchWinner(game, isKnockout = false) {
     if (hasActualScore(game)) {
         const goalsA = game.goalsTeamA
@@ -55,18 +104,7 @@ export function getMatchWinner(game, isKnockout = false) {
     }
 
     if (hasPredictionScore(game)) {
-        const goalsA = game.predictionScoreTeamA
-        const goalsB = game.predictionScoreTeamB
-
-        if (goalsA > goalsB) {
-            return { side: 'A', team: teamFromSide(game, 'A'), source: 'prediction' }
-        }
-
-        if (goalsA < goalsB) {
-            return { side: 'B', team: teamFromSide(game, 'B'), source: 'prediction' }
-        }
-
-        return null
+        return winnerFromPredictionScore(game)
     }
 
     return null

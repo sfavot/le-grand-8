@@ -54,6 +54,33 @@ function getScoreForStanding(game) {
     return null
 }
 
+function getScoreForPredictiveStanding(game) {
+    return getResultScore(game) || getPredictionScore(game)
+}
+
+function getGroupScheduleInfo(groupGames) {
+    const teamIds = new Set()
+    for (const game of groupGames) {
+        teamIds.add(game.idTeamA)
+        teamIds.add(game.idTeamB)
+    }
+
+    const teamCount = teamIds.size
+    return {
+        teamCount,
+        expectedGames: (teamCount * (teamCount - 1)) / 2,
+    }
+}
+
+function isGroupScheduleComplete(groupGames) {
+    if (groupGames.length === 0) {
+        return false
+    }
+
+    const { expectedGames } = getGroupScheduleInfo(groupGames)
+    return groupGames.length >= expectedGames
+}
+
 function teamFromGame(game, side) {
     if (side === 'A') {
         return {
@@ -158,57 +185,27 @@ function compareStandings(a, b) {
  * Returns null if any group game lacks both result and prediction.
  */
 export function computeGroupStandings(groupGames) {
-    if (groupGames.length === 0) {
+    if (!isGroupScheduleComplete(groupGames)) {
         return null
     }
 
-    const teamIds = new Set()
     for (const game of groupGames) {
-        teamIds.add(game.idTeamA)
-        teamIds.add(game.idTeamB)
+        if (getScoreForStanding(game) == null) {
+            return null
+        }
     }
 
-    const expectedGames = (teamIds.size * (teamIds.size - 1)) / 2
-    if (groupGames.length < expectedGames) {
-        return null
-    }
-
-    const standingsByTeamId = new Map()
-
-    for (const game of groupGames) {
+    return buildStandingsFromGroupGames(groupGames, (game) => {
         const score = getScoreForStanding(game)
         if (score == null) {
             return null
         }
 
-        const teamA = {
-            id: game.idTeamA,
-            countryCode: game.countryCodeTeamA,
-            countryName: game.countryNameTeamA,
-            group: game.group,
+        return {
+            goalsA: score.goalsA,
+            goalsB: score.goalsB,
         }
-        const teamB = {
-            id: game.idTeamB,
-            countryCode: game.countryCodeTeamB,
-            countryName: game.countryNameTeamB,
-            group: game.group,
-        }
-
-        if (!standingsByTeamId.has(teamA.id)) {
-            standingsByTeamId.set(teamA.id, emptyStanding(teamA))
-        }
-        if (!standingsByTeamId.has(teamB.id)) {
-            standingsByTeamId.set(teamB.id, emptyStanding(teamB))
-        }
-
-        const standingA = standingsByTeamId.get(teamA.id)
-        const standingB = standingsByTeamId.get(teamB.id)
-
-        applyResult(standingA, score.goalsA, score.goalsB)
-        applyResult(standingB, score.goalsB, score.goalsA)
-    }
-
-    return Array.from(standingsByTeamId.values()).sort(compareStandings)
+    })
 }
 
 export function getGroupGames(allGames, group) {
@@ -226,7 +223,7 @@ export function computeLiveGroupStandings(groupGames) {
  * Standings from results when available, otherwise user predictions.
  */
 export function computePredictiveGroupStandings(groupGames) {
-    return buildStandingsFromGroupGames(groupGames, (game) => getResultScore(game) || getPredictionScore(game))
+    return buildStandingsFromGroupGames(groupGames, getScoreForPredictiveStanding)
 }
 
 export function listGroupPhaseGroups(allGames) {
@@ -320,13 +317,64 @@ export function getQualifyingThirdGroupsKey(allGames) {
         ranked = rankPredictiveThirdPlacedTeams(allGames)
     }
 
-    if (ranked.length < 8) {
+    return qualifyingThirdGroupsKeyFromRanked(ranked)
+}
+
+function qualifyingThirdGroupsKeyFromRanked(ranked) {
+    if (ranked == null || ranked.length === 0) {
         return null
     }
 
-    return buildQualifyingThirdGroupsKey(
-        ranked.filter((entry) => entry.qualifies).map((entry) => entry.group),
-    )
+    const qualifying = ranked.filter((entry) => entry.qualifies)
+    if (qualifying.length < 8) {
+        return null
+    }
+
+    return buildQualifyingThirdGroupsKey(qualifying.map((entry) => entry.group))
+}
+
+export function getQualifyingThirdGroupsKeyFromLive(allGames) {
+    return qualifyingThirdGroupsKeyFromRanked(rankLiveThirdPlacedTeams(allGames))
+}
+
+export function getQualifyingThirdGroupsKeyFromPredictive(allGames) {
+    return qualifyingThirdGroupsKeyFromRanked(rankPredictiveThirdPlacedTeams(allGames))
+}
+
+function resolveThirdInAssignedGroup(allGames, eligibleGroups, matchNumber, qualifyingGroupsKey, standingsFn, source) {
+    if (qualifyingGroupsKey == null) {
+        return null
+    }
+
+    const assignedGroup = getAssignedThirdGroupForMatch(qualifyingGroupsKey, matchNumber)
+    if (assignedGroup == null || eligibleGroups.indexOf(assignedGroup) === -1) {
+        return null
+    }
+
+    const standings = standingsFn(getGroupGames(allGames, assignedGroup))
+    if (standings.length < 3) {
+        return null
+    }
+
+    return {
+        team: standings[2].team,
+        source,
+    }
+}
+
+function appendCandidate(candidates, candidate) {
+    if (candidate == null) {
+        return candidates
+    }
+
+    const alreadyListed = candidates.some((entry) => (
+        entry.source === candidate.source && entry.team.id === candidate.team.id
+    ))
+    if (!alreadyListed) {
+        candidates.push(candidate)
+    }
+
+    return candidates
 }
 
 export function rankLiveThirdPlacedTeams(allGames) {
@@ -358,33 +406,113 @@ export function rankThirdPlacedTeams(allGames) {
     return finalizeThirdPlaceRanking(thirds, groups.length)
 }
 
+function isGroupOfficiallyComplete(groupGames) {
+    return isGroupScheduleComplete(groupGames)
+        && groupGames.every((game) => getResultScore(game) != null)
+}
+
+const CANDIDATE_SOURCE_PRIORITY = ['db', 'result', 'partialResult', 'prediction']
+
+export function pickPrimaryCandidate(candidates) {
+    if (candidates == null || candidates.length === 0) {
+        return null
+    }
+
+    for (const source of CANDIDATE_SOURCE_PRIORITY) {
+        const found = candidates.find((candidate) => candidate.source === source)
+        if (found != null) {
+            return found
+        }
+    }
+
+    return candidates[0]
+}
+
+export function resolveGroupRankCandidates(allGames, rank, group) {
+    const groupGames = getGroupGames(allGames, group)
+    const candidates = []
+
+    if (isGroupOfficiallyComplete(groupGames)) {
+        const officialStandings = computeLiveGroupStandings(groupGames)
+        if (officialStandings.length >= rank) {
+            candidates.push({
+                team: officialStandings[rank - 1].team,
+                source: 'result',
+            })
+        }
+        return candidates
+    }
+
+    const playedGames = groupGames.filter((game) => getResultScore(game) != null)
+    if (playedGames.length > 0) {
+        const liveStandings = computeLiveGroupStandings(groupGames)
+        if (liveStandings.length >= rank) {
+            candidates.push({
+                team: liveStandings[rank - 1].team,
+                source: 'partialResult',
+            })
+        }
+    }
+
+    const predictiveStandings = computeGroupStandings(groupGames)
+    if (predictiveStandings != null && predictiveStandings.length >= rank) {
+        candidates.push({
+            team: predictiveStandings[rank - 1].team,
+            source: 'prediction',
+        })
+    }
+
+    return candidates
+}
+
 export function resolveGroupRank(allGames, rank, group) {
-    const standings = computeGroupStandings(getGroupGames(allGames, group))
-    if (standings == null || standings.length < rank) {
-        return null
-    }
-
-    const standing = standings[rank - 1]
-    return {
-        team: standing.team,
-        source: inferStandingsSource(getGroupGames(allGames, group)),
-    }
+    return pickPrimaryCandidate(resolveGroupRankCandidates(allGames, rank, group))
 }
 
-function inferStandingsSource(groupGames) {
-    const hasResult = groupGames.some((g) => g.goalsTeamA != null && g.goalsTeamB != null)
-    return hasResult ? 'result' : 'prediction'
+export function areAllGroupStagesOfficiallyComplete(allGames) {
+    const groups = listGroupPhaseGroups(allGames)
+    if (groups.length === 0) {
+        return false
+    }
+
+    return groups.every((group) => isGroupOfficiallyComplete(getGroupGames(allGames, group)))
 }
 
-export function resolveBestThird(allGames, eligibleGroups, matchNumber, qualifyingGroupsKey) {
-    if (matchNumber == null || qualifyingGroupsKey == null) {
-        return null
+export function resolveBestThirdCandidates(allGames, eligibleGroups, matchNumber) {
+    if (matchNumber == null) {
+        return []
     }
 
-    const assignedGroup = getAssignedThirdGroupForMatch(qualifyingGroupsKey, matchNumber)
-    if (assignedGroup == null || eligibleGroups.indexOf(assignedGroup) === -1) {
-        return null
+    const scenarios = areAllGroupStagesOfficiallyComplete(allGames)
+        ? [{
+            key: getQualifyingThirdGroupsKey(allGames),
+            standingsFn: computeLiveGroupStandings,
+            source: 'result',
+        }]
+        : [{
+            key: getQualifyingThirdGroupsKeyFromLive(allGames),
+            standingsFn: computeLiveGroupStandings,
+            source: 'partialResult',
+        }, {
+            key: getQualifyingThirdGroupsKeyFromPredictive(allGames),
+            standingsFn: computePredictiveGroupStandings,
+            source: 'prediction',
+        }]
+
+    const candidates = []
+    for (const scenario of scenarios) {
+        appendCandidate(
+            candidates,
+            resolveThirdInAssignedGroup(
+                allGames,
+                eligibleGroups,
+                matchNumber,
+                scenario.key,
+                scenario.standingsFn,
+                scenario.source,
+            ),
+        )
     }
 
-    return resolveGroupRank(allGames, 3, assignedGroup)
+    return candidates
 }

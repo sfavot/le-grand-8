@@ -22,8 +22,16 @@ export function fetchAdminGames({ filled = false } = {}) {
     return adminRequest(`/admin/games${query}`)
 }
 
+export function fetchAdminGamesSchedule() {
+    return adminRequest('/admin/games/schedule')
+}
+
 export function saveAdminGame(gameId, payload) {
     return adminRequest(`/admin/games/${gameId}`, { method: 'PUT', body: payload })
+}
+
+export function saveAdminGameSchedule(gameId, payload) {
+    return adminRequest(`/admin/games/${gameId}/schedule`, { method: 'PUT', body: payload })
 }
 
 export function calculateAdminPoints() {

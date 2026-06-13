@@ -7,14 +7,14 @@ import {
     computeLiveGroupStandings,
     computePredictiveGroupStandings,
     rankLiveThirdPlacedTeams,
-    rankPredictiveThirdPlacedTeams,
-    getGroupGames,
-    resolveBestThird,
     resolveGroupRank,
+    resolveGroupRankCandidates,
+    areAllGroupStagesOfficiallyComplete,
 } from '../src/groupStandings.js'
 import {
     enrichGamesWithBracket,
     isGamePredictable,
+    areProtagonistsConfirmed,
 } from '../src/bracketResolver.js'
 import {
     getAssignedThirdGroupForMatch,
@@ -412,5 +412,139 @@ describe('resolveGroupRank', () => {
         ]
 
         assert.equal(resolveGroupRank(games, 1, 'A'), null)
+    })
+
+    it('retourne partialResult et prediction si la poule a des résultats partiels', () => {
+        const mx = { id: 'mx', code: 'mx', name: 'Mexique' }
+        const za = { id: 'za', code: 'za', name: 'Afrique du Sud' }
+        const kr = { id: 'kr', code: 'kr', name: 'Corée du Sud' }
+        const cz = { id: 'cz', code: 'cz', name: 'République tchèque' }
+
+        const games = [
+            makeGroupGame({ gameId: 'g1', gameName: 'Match 1', group: 'A', teamA: mx, teamB: za, goalsA: 2, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g2', gameName: 'Match 2', group: 'A', teamA: kr, teamB: cz, predictionA: 1, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g3', gameName: 'Match 3', group: 'A', teamA: mx, teamB: kr, predictionA: 1, predictionB: 1 }),
+            makeGroupGame({ gameId: 'g4', gameName: 'Match 4', group: 'A', teamA: za, teamB: cz, predictionA: 0, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g5', gameName: 'Match 5', group: 'A', teamA: mx, teamB: cz, predictionA: 2, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g6', gameName: 'Match 6', group: 'A', teamA: za, teamB: kr, predictionA: 1, predictionB: 0 }),
+        ]
+
+        const candidates = resolveGroupRankCandidates(games, 2, 'A')
+        assert.equal(candidates.length, 2)
+        assert.equal(candidates[0].source, 'partialResult')
+        assert.equal(candidates[1].source, 'prediction')
+    })
+
+    it('retourne partialResult si la poule a des résultats partiels', () => {
+        const mx = { id: 'mx', code: 'mx', name: 'Mexique' }
+        const za = { id: 'za', code: 'za', name: 'Afrique du Sud' }
+        const kr = { id: 'kr', code: 'kr', name: 'Corée du Sud' }
+        const cz = { id: 'cz', code: 'cz', name: 'République tchèque' }
+
+        const games = [
+            makeGroupGame({ gameId: 'g1', gameName: 'Match 1', group: 'A', teamA: mx, teamB: za, goalsA: 2, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g2', gameName: 'Match 2', group: 'A', teamA: kr, teamB: cz, predictionA: 1, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g3', gameName: 'Match 3', group: 'A', teamA: mx, teamB: kr, predictionA: 1, predictionB: 1 }),
+            makeGroupGame({ gameId: 'g4', gameName: 'Match 4', group: 'A', teamA: za, teamB: cz, predictionA: 0, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g5', gameName: 'Match 5', group: 'A', teamA: mx, teamB: cz, predictionA: 2, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g6', gameName: 'Match 6', group: 'A', teamA: za, teamB: kr, predictionA: 1, predictionB: 0 }),
+        ]
+
+        const second = resolveGroupRank(games, 2, 'A')
+        assert.equal(second.source, 'partialResult')
+        assert.equal(second.team.countryCode, 'kr')
+    })
+
+    it('retourne result quand la poule est terminée', () => {
+        const mx = { id: 'mx', code: 'mx', name: 'Mexique' }
+        const za = { id: 'za', code: 'za', name: 'Afrique du Sud' }
+        const kr = { id: 'kr', code: 'kr', name: 'Corée du Sud' }
+        const cz = { id: 'cz', code: 'cz', name: 'République tchèque' }
+
+        const games = [
+            makeGroupGame({ gameId: 'g1', gameName: 'Match 1', group: 'A', teamA: mx, teamB: za, goalsA: 2, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g2', gameName: 'Match 2', group: 'A', teamA: kr, teamB: cz, goalsA: 1, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g3', gameName: 'Match 3', group: 'A', teamA: mx, teamB: kr, goalsA: 1, goalsB: 1 }),
+            makeGroupGame({ gameId: 'g4', gameName: 'Match 4', group: 'A', teamA: za, teamB: cz, goalsA: 0, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g5', gameName: 'Match 5', group: 'A', teamA: mx, teamB: cz, goalsA: 2, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g6', gameName: 'Match 6', group: 'A', teamA: za, teamB: kr, goalsA: 1, goalsB: 0 }),
+        ]
+
+        const second = resolveGroupRank(games, 2, 'A')
+        assert.equal(second.source, 'result')
+        assert.equal(second.team.countryCode, 'kr')
+    })
+
+    it('bloque le prono quand les qualifiés ne sont pas officiels', () => {
+        const mx = { id: 'mx', code: 'mx', name: 'Mexique' }
+        const za = { id: 'za', code: 'za', name: 'Afrique du Sud' }
+        const kr = { id: 'kr', code: 'kr', name: 'Corée du Sud' }
+        const cz = { id: 'cz', code: 'cz', name: 'République tchèque' }
+        const ca = { id: 'ca', code: 'ca', name: 'Canada' }
+
+        const groupGames = [
+            makeGroupGame({ gameId: 'g1', gameName: 'Match 1', group: 'A', teamA: mx, teamB: za, goalsA: 2, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g2', gameName: 'Match 2', group: 'A', teamA: kr, teamB: cz, predictionA: 1, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g3', gameName: 'Match 3', group: 'A', teamA: mx, teamB: kr, predictionA: 1, predictionB: 1 }),
+            makeGroupGame({ gameId: 'g4', gameName: 'Match 4', group: 'A', teamA: za, teamB: cz, predictionA: 0, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g5', gameName: 'Match 5', group: 'A', teamA: mx, teamB: cz, predictionA: 2, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g6', gameName: 'Match 6', group: 'A', teamA: za, teamB: kr, predictionA: 1, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g7', gameName: 'Match 7', group: 'B', teamA: ca, teamB: kr, goalsA: 1, goalsB: 0 }),
+            makeGroupGame({ gameId: 'g8', gameName: 'Match 8', group: 'B', teamA: ca, teamB: cz, predictionA: 2, predictionB: 0 }),
+            makeGroupGame({ gameId: 'g9', gameName: 'Match 9', group: 'B', teamA: kr, teamB: cz, predictionA: 0, predictionB: 0 }),
+        ]
+
+        const knockout = makeKnockoutGame({
+            gameId: 'k73',
+            gameName: 'Match 73',
+            teamA: { id: 'slot-a', name: '2e du Groupe A' },
+            teamB: { id: 'slot-b', name: '2e du Groupe B' },
+            startsAt: Date.now() + 100000,
+        })
+
+        const bracket = enrichGamesWithBracket([...groupGames, knockout], Date.now())
+        const state = bracket.get('k73')
+
+        assert.equal(state.teamA.source, 'partialResult')
+        assert.equal(state.teamB.source, 'partialResult')
+        assert.equal(state.teamA.candidates.length, 2)
+        assert.equal(state.teamB.candidates.length, 2)
+        assert.equal(areProtagonistsConfirmed(bracket, knockout), false)
+        assert.equal(isGamePredictable(bracket, knockout, Date.now()), true)
+    })
+
+    it('un 3e repêché n\'est confirmé qu\'une fois toutes les poules terminées', () => {
+        const games = makeTwelveGroupGames()
+
+        for (const game of games) {
+            if (game.group === 'A' && game.gameName !== 'M1') {
+                game.goalsTeamA = null
+                game.goalsTeamB = null
+                game.predictionScoreTeamA = 1
+                game.predictionScoreTeamB = 0
+            }
+        }
+
+        const match79 = makeKnockoutGame({
+            gameId: 'k79',
+            gameName: 'Match 79',
+            phase: '16èmes de finale',
+            teamA: { id: 'slot79a', name: '1er du Groupe A' },
+            teamB: { id: 'slot79b', name: '3e du Groupe C, E, F, H, I' },
+            startsAt: Date.now() + 100000,
+        })
+
+        const allGames = [...games, match79]
+        assert.equal(areAllGroupStagesOfficiallyComplete(allGames), false)
+
+        const bracket = enrichGamesWithBracket(allGames, Date.now())
+        const state = bracket.get('k79')
+
+        assert.ok(state.teamB.resolved, 'un 3e provisoire devrait être affiché')
+        assert.equal(state.teamB.source, 'partialResult')
+        assert.equal(state.teamB.candidates.length, 2)
+        assert.equal(state.teamB.candidates[0].source, 'partialResult')
+        assert.equal(state.teamB.candidates[1].source, 'prediction')
+        assert.equal(areProtagonistsConfirmed(bracket, match79), false)
     })
 })

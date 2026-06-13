@@ -1,6 +1,12 @@
 import Joi from 'joi'
+import Boom from '@hapi/boom'
 import { createAssertAdminPre } from '../infra/admin-auth.js'
-import { fetchAdminGames, updateGameResults } from '../services/adminService.js'
+import {
+    fetchAdminGames,
+    fetchAdminGamesSchedule,
+    updateGameResults,
+    updateGameSchedule,
+} from '../services/adminService.js'
 import { calculatePronostic } from '../services/pronosticService.js'
 
 const assertAdmin = createAssertAdminPre()
@@ -16,6 +22,16 @@ export const plugin = {
         server.route([
             {
                 method: 'GET',
+                path: '/api/admin/games/schedule',
+                options: {
+                    ...adminRouteOptions,
+                    description: 'All games for admin schedule management',
+                    tags: ['api', 'admin'],
+                    handler: async (_request, _h) => fetchAdminGamesSchedule(),
+                },
+            },
+            {
+                method: 'GET',
                 path: '/api/admin/games',
                 options: {
                     ...adminRouteOptions,
@@ -27,6 +43,42 @@ export const plugin = {
                         }),
                     },
                     handler: async (request, _h) => fetchAdminGames({ filled: request.query.filled }),
+                },
+            },
+            {
+                method: 'PUT',
+                path: '/api/admin/games/{gameId}/schedule',
+                options: {
+                    ...adminRouteOptions,
+                    description: 'Update game date, time, venue and metadata',
+                    tags: ['api', 'admin'],
+                    validate: {
+                        params: Joi.object({
+                            gameId: Joi.string().required(),
+                        }),
+                        payload: Joi.object({
+                            gameName: Joi.string().allow('').optional(),
+                            phase: Joi.string().optional(),
+                            stadium: Joi.string().required(),
+                            city: Joi.string().required(),
+                            date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(),
+                            time: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
+                        }),
+                    },
+                    handler: async (request, _h) => {
+                        try {
+                            const updated = await updateGameSchedule({
+                                gameId: request.params.gameId,
+                                ...request.payload,
+                            })
+                            return { ok: true, game: updated }
+                        } catch (err) {
+                            if (err.message?.includes('Ville inconnue')) {
+                                throw Boom.badRequest(err.message)
+                            }
+                            throw err
+                        }
+                    },
                 },
             },
             {

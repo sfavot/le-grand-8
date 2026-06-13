@@ -38,14 +38,10 @@ export function hasUnknownProtagonists(game, bracketMap) {
     return state.teamA.resolved == null || state.teamB.resolved == null
 }
 
-export function isProtagonistsUnknown(game, bracketMap) {
-    return hasUnknownProtagonists(game, bracketMap)
-}
-
 export function isOpenForPrediction(game, bracketMap) {
-    return !isSubmissionClosed(game)
-        && areProtagonistsConfirmed(bracketMap, game)
-        && isGamePredictable(bracketMap, game)
+    return !isSubmissionClosed(game) &&
+        areProtagonistsConfirmed(bracketMap, game) &&
+        isGamePredictable(bracketMap, game)
 }
 
 export function isPredictionInputsDisabled(game, bracketMap) {
@@ -58,10 +54,6 @@ export function isPredictionInputsDisabled(game, bracketMap) {
     }
 
     return !isGamePredictable(bracketMap, game)
-}
-
-export function hasOfficialProtagonists(game) {
-    return Boolean(game.countryCodeTeamA && game.countryCodeTeamB)
 }
 
 /**

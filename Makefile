@@ -18,7 +18,7 @@ NEO4J_PASSWORD ?= huitparfait-local
 .PHONY: help setup keys env-local install neo4j-up neo4j-down neo4j-logs \
         dev dev-api dev-auth dev-front dev-kill stop lint test audit ci \
         compose-up compose-down data-wc2026-generate data-wc2026 \
-        data-reset-neo4j data-import-wc2026 data-import-wc2026-knockout data-fresh-wc2026 data-dev-scenario flags-wc2026
+        data-reset-neo4j data-import-wc2026 data-import-wc2026-knockout data-fresh-wc2026 data-dev-scenario data-bracket-fixtures flags-wc2026
 
 help: ## Affiche cette aide
 	@echo "Le Grand 8 : commandes locales"
@@ -166,6 +166,12 @@ data-dev-scenario: ## Scénario de test local (USER_EMAIL=…, option CALCULATE=
 	@$(COMPOSE) $(COMPOSE_FILES) ps -q huitparfait-data | grep -q . \
 		|| (echo "Neo4j ne tourne pas : lance : make neo4j-up" && exit 1)
 	node scripts/seed-dev-scenario.mjs --email "$(USER_EMAIL)" $(CALCULATE)
+
+data-bracket-fixtures: ## Fixtures bracket non destructives (USER_EMAIL requis)
+	@test -n "$(USER_EMAIL)" || (echo "USER_EMAIL requis, ex. : make data-bracket-fixtures USER_EMAIL=toi@gmail.com" && exit 1)
+	@$(COMPOSE) $(COMPOSE_FILES) ps -q huitparfait-data | grep -q . \
+		|| (echo "Neo4j ne tourne pas : lance : make neo4j-up" && exit 1)
+	node scripts/seed-bracket-fixtures.mjs --email "$(USER_EMAIL)"
 
 flags-wc2026: ## Copie les drapeaux SVG (flag-icons) pour le front
 	npm install
