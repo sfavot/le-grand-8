@@ -3,7 +3,7 @@
 
         <card v-if="showPreviousEmptyState" class="predictions-empty">
             <p><strong>Rien ici pour l'instant.</strong></p>
-            <p>Les matchs passés s'afficheront ici une fois qu'une journée de compétition sera terminée.</p>
+            <p>Les matchs passés s'afficheront ici une fois leur score renseigné, environ 2 heures après le coup d'envoi.</p>
             <p class="predictions-empty-link">
                 <link-btn v-link="{ name: 'predictions', params: { period: 'prochains-matchs' } }">
                     Voir les prochains matchs
@@ -73,13 +73,13 @@
                             </template>
                         </div>
                         <div class="game-teams-section">
-                            <div v-if="hasScore(game) && isResultPublishable(game)"
+                            <div v-if="isGameFinishedForPeriod(game)"
                                  class="game-score">{{* game.goalsTeamA}} - {{* game.goalsTeamB}}
                             </div>
-                            <div v-if="hasScoreWithPenalties(game) && isResultPublishable(game)"
+                            <div v-if="hasScoreWithPenalties(game) && isGameFinishedForPeriod(game)"
                                  class="game-penalties">Tab. {{* game.penaltiesTeamA}} - {{* game.penaltiesTeamB}}
                             </div>
-                            <div v-if="!hasScore(game) || !isResultPublishable(game)" class="game-time">
+                            <div v-if="!isGameFinishedForPeriod(game)" class="game-time">
                                 <div>{{* game.startsAt | time}}</div>
                                 <div v-if="venueTimeLabel(game)" class="game-time-venue">{{* venueTimeLabel(game) }}</div>
                             </div>
@@ -129,12 +129,12 @@
                     </div>
 
                     <div class="game-risk">
-                        <span v-if="game.riskHappened == null || !isResultPublishable(game)"
+                        <span v-if="game.riskHappened == null || !isGameFinishedForPeriod(game)"
                                 class="game-risk-titlePrefix">Risquette :</span>
-                        <span v-if="game.riskHappened === true && isResultPublishable(game)"
+                        <span v-if="game.riskHappened === true && isGameFinishedForPeriod(game)"
                                 class="game-risk-titlePrefix"
                                 :class="{ rightAnswer: wasRightAboutRisk(game) === true, wrongAnswer: wasRightAboutRisk(game) === false }">Risquette vraie :</span>
-                        <span v-if="game.riskHappened === false && isResultPublishable(game)"
+                        <span v-if="game.riskHappened === false && isGameFinishedForPeriod(game)"
                                 class="game-risk-titlePrefix"
                                 :class="{ rightAnswer: wasRightAboutRisk(game) === true, wrongAnswer: wasRightAboutRisk(game) === false }">Risquette fausse :</span>
                         <span class="game-risk-title">{{* game.riskTitle}}</span>
@@ -209,12 +209,12 @@
                         </btn>
                         <div class="game-submitZone-savedCheck" v-show="showPredictionSavedTick(game)"></div>
                         <div class="game-pointsExplanation"
-                                v-if="isResultPublishable(game) && game.points != null && game.points < 8">
+                                v-if="isGameFinishedForPeriod(game) && game.points != null && game.points < 8">
                             {{* game.points}} pts : {{* game.classicPoints}} pts {{* game.riskPoints >= 0 ? '+' : '-'}}
                             {{* (game.riskPoints || 0) | abs}} pts (risquette)
                         </div>
                         <div class="game-pointsExplanation"
-                                v-if="isResultPublishable(game) && game.points == 8">
+                                v-if="isGameFinishedForPeriod(game) && game.points == 8">
                             Grand 8 !
                         </div>
                     </div>
@@ -233,8 +233,8 @@
     import store from '../state/configureStore'
     import { fetchPredictions, savePrediction } from '../state/actions/predictions'
     import _ from 'lodash'
-    import moment from 'moment'
     import { flagSrc, onFlagError } from '../flagSrc'
+    import { isGameFinishedForPeriod as checkGameFinishedForPeriod } from '../gameFinishedUtils'
     import { formatDisplayDate, formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
     import {
         areProtagonistsConfirmed,
@@ -249,8 +249,6 @@
         buildPhaseSections,
         enrichGamesWithBracket,
     } from '../bracketUtils'
-
-    moment.locale('fr')
 
     export default {
         data() {
@@ -488,12 +486,9 @@
                 // Do not show the tick when the results are available
                 // Show it when the game has just been saved (game.unsaved === false)
                 // Also show it when we've just laoded the page and the prediction is valid (game.unsaved == null but prediction valid)
-                return !this.isResultPublishable(game) && (game.unsaved === false || (game.unsaved == null && this.predictionIsValid(game)))
+                return !this.isGameFinishedForPeriod(game) && (game.unsaved === false || (game.unsaved == null && this.predictionIsValid(game)))
             },
-            isResultPublishable: function (game) {
-                // A result is publishable at 8:08AM the next day of a game
-                return moment(game.startsAt).endOf('day').add(8, 'hours').add(8, 'minutes').isBefore(Date.now())
-            },
+            isGameFinishedForPeriod: checkGameFinishedForPeriod,
             wasRightAboutRisk: function (game) {
                 if (game.predictionRiskAnswer == null) {
                     return null

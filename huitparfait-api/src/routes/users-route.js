@@ -6,6 +6,7 @@ import { cypher, cypherOne } from '../infra/neo4j.js'
 import { emptyIfDeleted } from '../infra/replyUtils.js'
 import { betterGroup } from '../services/groupService.js'
 import { assertGameIsPredictable } from '../services/predictionsService.js'
+import { isGameFinishedForPeriod } from '../infra/gameFinishedUtils.js'
 import { displayDayKeyFromStartsAt } from '../infra/gameTimeUtils.js'
 import { formatCurrentUser, generateName } from '../services/userService.js'
 
@@ -248,27 +249,18 @@ export const plugin = {
                             userId: request.auth.credentials.id,
                         })
 
-                    const allDates = _(predictions)
-                        .map((game) => displayDayKeyFromStartsAt(game.startsAt))
-                        .uniq()
-                        .value()
-
-                    const today = displayDayKeyFromStartsAt(Date.now())
-                    const nextDay = _(allDates).find((day) => day >= today)
-                    const previousDay = _(allDates).slice().reverse().find((day) => day < today)
-
                     return _(predictions)
                         .filter((game) => {
-                            const dayOfGame = displayDayKeyFromStartsAt(game.startsAt)
+                            const finished = isGameFinishedForPeriod(game)
 
                             if (request.params.period === 'previous-days'
                                 || request.params.period === 'matchs-precedents') {
-                                return dayOfGame <= previousDay
+                                return finished
                             }
 
                             if (request.params.period === 'next-days'
                                 || request.params.period === 'prochains-matchs') {
-                                return dayOfGame >= nextDay
+                                return !finished
                             }
 
                             return true
