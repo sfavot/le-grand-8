@@ -283,7 +283,12 @@
     import _ from 'lodash'
     import { flagSrc, onFlagError } from '../flagSrc'
     import { isGameFinishedForPeriod as checkGameFinishedForPeriod } from '../gameFinishedUtils'
-    import { formatDisplayDate, formatGameVenueTime, formatLocalTime } from '../gameTimeUtils'
+    import {
+        displayDayKeyFromStartsAt,
+        formatDisplayDate,
+        formatGameVenueTime,
+        formatLocalTime,
+    } from '../gameTimeUtils'
     import {
         areProtagonistsConfirmed,
         hasUnknownProtagonists,
@@ -296,6 +301,7 @@
         bracketResolvedSourceLabel,
         buildPhaseSections,
         enrichGamesWithBracket,
+        flattenGamesFromApiResponse,
     } from '../bracketUtils'
 
     export default {
@@ -308,6 +314,7 @@
                 onlyUnfilledSnapshotByGameId: null,
                 viewedUser: null,
                 otherPredictions: null,
+                predictionsRequestToken: 0,
                 user: this.$select('user'),
             }
         },
@@ -436,7 +443,7 @@
             },
         },
         ready() {
-            this.syncGamesByDayFromStore()
+            this.syncActivePredictions()
         },
         route: {
             data() {
@@ -444,16 +451,28 @@
                 this.onlyUnfilledSnapshotByGameId = null
 
                 if (this.$route.name === 'userPredictions') {
+                    const requestToken = ++this.predictionsRequestToken
+                    const requestedUserId = this.$route.params.userId
+
                     this.viewedUser = null
                     this.otherPredictions = null
                     this.gamesByDayList = null
 
                     return apiFetchUserPredictions(
-                        this.$route.params.userId,
+                        requestedUserId,
                         'matchs-precedents',
                         this.$route.query.groupId,
                     )
                         .then(({ user, predictions }) => {
+                            if (requestToken !== this.predictionsRequestToken) {
+                                return
+                            }
+
+                            if (this.$route.name !== 'userPredictions'
+                                    || this.$route.params.userId !== requestedUserId) {
+                                return
+                            }
+
                             this.viewedUser = user
                             this.otherPredictions = predictions
                             this.syncGamesByDayFromSource(predictions)
@@ -466,22 +485,26 @@
                 switch (this.$route.params.period) {
                     case 'matchs-precedents':
                         return store.dispatch(fetchPredictions('previous-days'))
-                            .then(() => this.syncGamesByDayFromStore())
+                            .then(() => this.syncActivePredictions())
                     case 'prochains-matchs':
                         return store.dispatch(fetchPredictions('next-days'))
-                            .then(() => this.syncGamesByDayFromStore())
+                            .then(() => this.syncActivePredictions())
                     default:
                         return store.dispatch(fetchPredictions())
-                            .then(() => this.syncGamesByDayFromStore())
+                            .then(() => this.syncActivePredictions())
                 }
             },
         },
         watch: {
             predictions() {
-                this.syncGamesByDayFromStore()
+                if (!this.isReadOnly) {
+                    this.syncActivePredictions()
+                }
             },
             predictionsAllGames() {
-                this.reapplyBracketStateToGames()
+                if (this.isNextMatchesPage) {
+                    this.reapplyBracketStateToGames()
+                }
             },
         },
         methods: {
@@ -534,7 +557,17 @@
             isPredictionInputsDisabled(game) {
                 return isPredictionFormDisabled(game, this.bracketMap)
             },
-            syncGamesByDayFromStore() {
+            isUpcomingMatchesPeriod() {
+                return !this.isReadOnly && this.$route.params.period === 'prochains-matchs'
+            },
+            syncActivePredictions() {
+                if (this.isReadOnly) {
+                    if (this.otherPredictions != null) {
+                        this.syncGamesByDayFromSource(this.otherPredictions)
+                    }
+                    return
+                }
+
                 this.syncGamesByDayFromSource(this.predictions)
             },
             syncGamesByDayFromSource(predictionsByDay) {
@@ -544,19 +577,40 @@
                 }
 
                 const bracketMap = this.bracketMap
+                const sortAscending = this.isUpcomingMatchesPeriod()
+                const gamesByDay = new Map()
 
-                this.gamesByDayList = _(predictionsByDay)
-                    .map((games, dayKey) => ({
-                        gameDate: Number(dayKey),
-                        games: _.cloneDeep(games)
-                            .map((game) => applyBracketStateToGame(game, bracketMap)),
-                    }))
+                for (const game of flattenGamesFromApiResponse(predictionsByDay)) {
+                    const dayKey = displayDayKeyFromStartsAt(game.startsAt)
+
+                    if (dayKey == null) {
+                        continue
+                    }
+
+                    if (!gamesByDay.has(dayKey)) {
+                        gamesByDay.set(dayKey, [])
+                    }
+
+                    gamesByDay.get(dayKey).push(game)
+                }
+
+                const days = Array.from(gamesByDay.entries()).map(([gameDate, games]) => {
+                    const sortedGames = _.sortBy(games, 'startsAt')
+
+                    return {
+                        gameDate: Number(gameDate),
+                        games: (sortAscending ? sortedGames : sortedGames.slice().reverse())
+                            .map((game) => applyBracketStateToGame(_.cloneDeep(game), bracketMap)),
+                    }
+                })
+
+                this.gamesByDayList = _(days)
                     .sortBy('gameDate')
+                    .thru((sortedDays) => sortAscending ? sortedDays : sortedDays.slice().reverse())
                     .value()
             },
             reapplyBracketStateToGames() {
-                if (this.gamesByDayList == null) {
-                    this.syncGamesByDayFromStore()
+                if (!this.isNextMatchesPage || this.gamesByDayList == null) {
                     return
                 }
 
