@@ -68,7 +68,7 @@
 
                 <card wide class="game"
                         :class="gameCardClass(game)"
-                        v-for="game in section.games" track-by="gameId">
+                        v-for="game in section.games" track-by="listKey">
 
                     <div class="game-header">
                         <div class="game-name">
@@ -239,31 +239,23 @@
                                 :disabled="isPredictionInputsDisabled(game)">Enregistrer
                         </btn>
                         <div class="game-submitZone-savedCheck" v-show="showPredictionSavedTick(game)"></div>
-                        <div class="game-pointsExplanation"
-                                v-if="isGameFinishedForPeriod(game) && game.points != null && game.points < 8">
-                            {{* game.points}} pts : {{* game.classicPoints}} pts {{* game.riskPoints >= 0 ? '+' : '-'}}
-                            {{* (game.riskPoints || 0) | abs}} pts (risquette)
-                        </div>
-                        <div class="game-pointsExplanation"
-                                v-if="isGameFinishedForPeriod(game) && game.points == 8">
-                            Grand 8 !
-                        </div>
+                        <game-points-explanation
+                                :points="game.points"
+                                :classic-points="game.classicPoints"
+                                :risk-points="game.riskPoints"
+                                :finished="isGameFinishedForPeriod(game)">
+                        </game-points-explanation>
                     </div>
 
                     <div class="game-readOnlyFooter" v-if="isReadOnly">
-                        <div class="game-pointsExplanation"
-                                v-if="isGameFinishedForPeriod(game) && game.points != null && game.points < 8">
-                            {{* game.points}} pts : {{* game.classicPoints}} pts {{* game.riskPoints >= 0 ? '+' : '-'}}
-                            {{* (game.riskPoints || 0) | abs}} pts (risquette)
-                        </div>
-                        <div class="game-pointsExplanation"
-                                v-if="isGameFinishedForPeriod(game) && game.points == 8">
-                            Grand 8 !
-                        </div>
-                        <div class="game-pointsExplanation game-pointsExplanation--none"
-                                v-if="isGameFinishedForPeriod(game) && !hasUserPrediction(game) && game.points == null">
-                            Pas de pronostic
-                        </div>
+                        <game-points-explanation
+                                :points="game.points"
+                                :classic-points="game.classicPoints"
+                                :risk-points="game.riskPoints"
+                                :finished="isGameFinishedForPeriod(game)"
+                                :has-prediction="hasUserPrediction(game)"
+                                :read-only="true">
+                        </game-points-explanation>
                     </div>
 
                 </card>
@@ -280,6 +272,7 @@
     import store from '../state/configureStore'
     import { fetchPredictions, savePrediction } from '../state/actions/predictions'
     import { fetchUserPredictions as apiFetchUserPredictions } from '../WebApi'
+    import GamePointsExplanation from './GamePointsExplanation'
     import _ from 'lodash'
     import { flagSrc, onFlagError } from '../flagSrc'
     import { isGameFinishedForPeriod as checkGameFinishedForPeriod } from '../gameFinishedUtils'
@@ -305,6 +298,9 @@
     } from '../bracketUtils'
 
     export default {
+        components: {
+            GamePointsExplanation,
+        },
         data() {
             return {
                 predictions: this.$select('predictions'),
@@ -315,6 +311,7 @@
                 viewedUser: null,
                 otherPredictions: null,
                 predictionsRequestToken: 0,
+                predictionsListKey: 0,
                 user: this.$select('user'),
             }
         },
@@ -481,21 +478,27 @@
 
                 this.viewedUser = null
                 this.otherPredictions = null
+                this.gamesByDayList = null
 
                 switch (this.$route.params.period) {
                     case 'matchs-precedents':
                         return store.dispatch(fetchPredictions('previous-days'))
-                            .then(() => this.syncActivePredictions())
+                            .then(() => this.syncOwnPredictionsFromStore('matchs-precedents'))
                     case 'prochains-matchs':
                         return store.dispatch(fetchPredictions('next-days'))
-                            .then(() => this.syncActivePredictions())
+                            .then(() => this.syncOwnPredictionsFromStore('prochains-matchs'))
                     default:
                         return store.dispatch(fetchPredictions())
-                            .then(() => this.syncActivePredictions())
+                            .then(() => this.syncOwnPredictionsFromStore())
                 }
             },
         },
         watch: {
+            isReadOnly(isReadOnly, wasReadOnly) {
+                if (wasReadOnly === true && isReadOnly === false && this.predictions != null) {
+                    this.syncGamesByDayFromSource(this.predictions)
+                }
+            },
             predictions() {
                 if (!this.isReadOnly) {
                     this.syncActivePredictions()
@@ -560,6 +563,17 @@
             isUpcomingMatchesPeriod() {
                 return !this.isReadOnly && this.$route.params.period === 'prochains-matchs'
             },
+            syncOwnPredictionsFromStore(expectedPeriod) {
+                if (this.$route.name !== 'predictions') {
+                    return
+                }
+
+                if (expectedPeriod != null && this.$route.params.period !== expectedPeriod) {
+                    return
+                }
+
+                this.syncGamesByDayFromSource(this.predictions)
+            },
             syncActivePredictions() {
                 if (this.isReadOnly) {
                     if (this.otherPredictions != null) {
@@ -576,6 +590,7 @@
                     return
                 }
 
+                const listKey = ++this.predictionsListKey
                 const bracketMap = this.bracketMap
                 const sortAscending = this.isUpcomingMatchesPeriod()
                 const gamesByDay = new Map()
@@ -600,7 +615,11 @@
                     return {
                         gameDate: Number(gameDate),
                         games: (sortAscending ? sortedGames : sortedGames.slice().reverse())
-                            .map((game) => applyBracketStateToGame(_.cloneDeep(game), bracketMap)),
+                            .map((game) => {
+                                const enriched = applyBracketStateToGame(_.cloneDeep(game), bracketMap)
+                                enriched.listKey = `${listKey}-${game.gameId}`
+                                return enriched
+                            }),
                     }
                 })
 
@@ -627,6 +646,7 @@
                             predictionRiskAnswer: game.predictionRiskAnswer,
                             predictionRiskAmount: game.predictionRiskAmount,
                             unsaved: game.unsaved,
+                            listKey: game.listKey,
                         })
                     }),
                 }))
