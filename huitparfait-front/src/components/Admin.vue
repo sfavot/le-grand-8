@@ -175,13 +175,15 @@
                         </label>
                     </div>
 
-                    <admin-schedule-tz :city="game.editCity" :date="game.editDate" :time="game.editTime"/>
+                    <div class="admin-schedule-actions">
+                        <p class="admin-message admin-message--error" v-if="game.saveError">{{* game.saveError }}</p>
+                        <p class="admin-message admin-message--ok" v-if="game.saveOk">Enregistré.</p>
+                        <btn @click="saveScheduleGame(game)" :disabled="game.saving">
+                            {{* game.saving ? 'Enregistrement…' : 'Enregistrer' }}
+                        </btn>
+                    </div>
 
-                    <p class="admin-message admin-message--error" v-if="game.saveError">{{* game.saveError }}</p>
-                    <p class="admin-message admin-message--ok" v-if="game.saveOk">Enregistré.</p>
-                    <btn @click="saveScheduleGame(game)" :disabled="game.saving">
-                        {{* game.saving ? 'Enregistrement…' : 'Enregistrer' }}
-                    </btn>
+                    <admin-schedule-tz :city="game.editCity" :date="game.editDate" :time="game.editTime"></admin-schedule-tz>
                 </card>
             </card-list>
         </template>
@@ -647,5 +649,32 @@
     .admin-schedule-field .admin-input {
         margin-bottom: 0;
         margin-top: 4px;
+    }
+
+    .admin-schedule-actions {
+        margin-bottom: 12px;
+        margin-top: 4px;
+    }
+
+    .admin-schedule-actions .btn {
+        display: block;
+        width: 100%;
+    }
+
+    @media (min-width: 500px) {
+        .admin-schedule-actions .btn {
+            display: inline-block;
+            width: auto;
+        }
+    }
+
+    .admin-game--schedule {
+        margin-bottom: 24px;
+    }
+
+    @media (max-width: 849px) {
+        .admin-game--schedule:last-child {
+            margin-bottom: 80px;
+        }
     }
 </style>
