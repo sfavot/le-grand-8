@@ -13,19 +13,59 @@
                     <div class="previous-matches-summary-infos">
                         <div class="previous-matches-summary-name">{{* headerUser.name }}</div>
                         <div class="previous-matches-summary-stats">
-                            <span class="previous-matches-summary-score">
-                                <strong>{{ previousMatchesStats.totalScore }}</strong>{{ previousMatchesStats.totalScore | frenchPlural 'pt' }}
-                            </span>
-                            <span class="previous-matches-summary-with">avec</span>
-                            <span class="previous-matches-summary-pronos">
-                                <strong>{{ previousMatchesStats.nbPredictions }}</strong>
-                                {{ previousMatchesStats.nbPredictions | frenchPlural 'prono' }}
-                            </span>
-                            <span class="previous-matches-summary-perfects"
-                                    v-if="previousMatchesStats.nbPerfects > 0">
-                                · <strong>{{ previousMatchesStats.nbPerfects }}</strong>
-                                {{ previousMatchesStats.nbPerfects | frenchPlural 'grand 8' }}
-                            </span>
+                            <div class="previous-matches-summary-statsLine">
+                                <span class="previous-matches-summary-score">
+                                    <strong>{{ previousMatchesStats.totalScore }}</strong>{{ previousMatchesStats.totalScore | frenchPlural 'pt' }}
+                                </span>
+                                <span class="previous-matches-summary-with">avec</span>
+                                <span class="previous-matches-summary-pronos">
+                                    <strong>{{ previousMatchesStats.nbPredictions }}</strong>
+                                    {{ previousMatchesStats.nbPredictions | frenchPlural 'prono' }}
+                                </span>
+                                <span v-if="previousMatchesStats.avgPointsPerMatch != null"
+                                        class="previous-matches-summary-avgPoints">
+                                    · moy. <strong>{{ previousMatchesStats.avgPointsPerMatchFormatted }}</strong>
+                                    {{ previousMatchesStats.avgPointsPerMatch | frenchPlural 'pt' }}/match
+                                </span>
+                                <span class="previous-matches-summary-perfects"
+                                        v-if="previousMatchesStats.nbPerfects > 0">
+                                    · <strong>{{ previousMatchesStats.nbPerfects }}</strong>
+                                    {{ previousMatchesStats.nbPerfects | frenchPlural 'grand 8' }}
+                                </span>
+                            </div>
+                            <div class="previous-matches-summary-statsLine previous-matches-summary-statsLine--secondary">
+                                <span class="previous-matches-summary-risquettes">
+                                    Risquettes :
+                                    <strong>{{ previousMatchesStats.nbRisquettesWon }}</strong>
+                                    {{ previousMatchesStats.nbRisquettesWon | frenchPlural 'gagnée' }}
+                                    · <strong>{{ previousMatchesStats.nbRisquettesLost }}</strong>
+                                    {{ previousMatchesStats.nbRisquettesLost | frenchPlural 'perdue' }}
+                                    · <strong>{{ previousMatchesStats.nbRisquettesNotPlayed }}</strong>
+                                    {{ previousMatchesStats.nbRisquettesNotPlayed | frenchPlural 'non jouée' }}
+                                </span>
+                                <span v-if="previousMatchesStats.avgRiskedPoints != null"
+                                        class="previous-matches-summary-avgRisk">
+                                    · moy. <strong>{{ previousMatchesStats.avgRiskedPointsFormatted }}</strong>
+                                    {{ previousMatchesStats.avgRiskedPoints | frenchPlural 'pt' }} risqué{{ previousMatchesStats.avgRiskedPoints > 1 || previousMatchesStats.avgRiskedPoints < -1 ? 's' : '' }}
+                                </span>
+                                <span v-if="previousMatchesStats.risquetteSuccessRate != null"
+                                        class="previous-matches-summary-successRate">
+                                    · <strong>{{ previousMatchesStats.risquetteSuccessRateFormatted }} %</strong> de réussite
+                                </span>
+                            </div>
+                            <div class="previous-matches-summary-statsLine previous-matches-summary-statsLine--secondary">
+                                <span class="previous-matches-summary-outcomes">
+                                    Issues :
+                                    <strong>{{ previousMatchesStats.nbOutcomesWon }}</strong>
+                                    {{ previousMatchesStats.nbOutcomesWon | frenchPlural 'trouvée' }}
+                                    · <strong>{{ previousMatchesStats.nbOutcomesLost }}</strong>
+                                    {{ previousMatchesStats.nbOutcomesLost | frenchPlural 'ratée' }}
+                                </span>
+                                <span v-if="previousMatchesStats.outcomeSuccessRate != null"
+                                        class="previous-matches-summary-successRate">
+                                    · <strong>{{ previousMatchesStats.outcomeSuccessRateFormatted }} %</strong> de réussite
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -296,6 +336,12 @@
         enrichGamesWithBracket,
         flattenGamesFromApiResponse,
     } from '../bracketUtils'
+    import {
+        computePreviousMatchesStats,
+        formatAvgRiskedPoints,
+        formatOneDecimal,
+        formatSuccessRate,
+    } from '../previousMatchesStats'
 
     export default {
         components: {
@@ -342,6 +388,19 @@
                         totalScore: 0,
                         nbPredictions: 0,
                         nbPerfects: 0,
+                        nbRisquettesWon: 0,
+                        nbRisquettesLost: 0,
+                        nbRisquettesNotPlayed: 0,
+                        avgRiskedPoints: null,
+                        avgRiskedPointsFormatted: null,
+                        risquetteSuccessRate: null,
+                        risquetteSuccessRateFormatted: null,
+                        nbOutcomesWon: 0,
+                        nbOutcomesLost: 0,
+                        outcomeSuccessRate: null,
+                        outcomeSuccessRateFormatted: null,
+                        avgPointsPerMatch: null,
+                        avgPointsPerMatchFormatted: null,
                     }
                 }
 
@@ -351,11 +410,14 @@
                     .filter((game) => game.points != null)
                     .value()
 
-                return {
-                    totalScore: _.sumBy(scoredGames, 'points'),
-                    nbPredictions: scoredGames.length,
-                    nbPerfects: scoredGames.filter((game) => game.points === 8).length,
-                }
+                const stats = computePreviousMatchesStats(scoredGames)
+
+                return Object.assign({}, stats, {
+                    avgRiskedPointsFormatted: formatAvgRiskedPoints(stats.avgRiskedPoints),
+                    risquetteSuccessRateFormatted: formatSuccessRate(stats.risquetteSuccessRate),
+                    outcomeSuccessRateFormatted: formatSuccessRate(stats.outcomeSuccessRate),
+                    avgPointsPerMatchFormatted: formatOneDecimal(stats.avgPointsPerMatch),
+                })
             },
             isNextMatchesPage() {
                 return !this.isReadOnly && this.$route.params.period === 'prochains-matchs'
@@ -815,7 +877,17 @@
         margin-top: 6px;
     }
 
-    .previous-matches-summary-score {
+    .previous-matches-summary-statsLine--secondary {
+        font-size: 14px;
+        margin-top: 4px;
+    }
+
+    .previous-matches-summary-score,
+    .previous-matches-summary-risquettes strong,
+    .previous-matches-summary-outcomes strong,
+    .previous-matches-summary-avgRisk strong,
+    .previous-matches-summary-avgPoints strong,
+    .previous-matches-summary-successRate strong {
         color: #333;
     }
 
