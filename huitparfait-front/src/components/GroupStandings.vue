@@ -1,5 +1,5 @@
 <template>
-    <div class="page--results" :class="{ 'page--results--knockout': displayedPhase === 'knockout' }">
+    <div class="page--results" :class="{ 'page--results--knockout': isKnockoutDisplayedPhase }">
 
         <card-title>Résultats</card-title>
 
@@ -13,6 +13,12 @@
                         :class="{ 'results-tab--active': activeTab === 'groups' }"
                         @click="activeTab = 'groups'">
                     Phase de groupes
+                </btn>
+                <btn v-if="showRoundOf16Tab"
+                        class="results-tab results-tab--mobileOnly"
+                        :class="{ 'results-tab--active': activeTab === 'roundOf16' }"
+                        @click="activeTab = 'roundOf16'">
+                    16èmes de finale
                 </btn>
                 <btn class="results-tab"
                         :class="{ 'results-tab--active': activeTab === 'knockout' }"
@@ -133,8 +139,8 @@
             </third-place-ranking>
             </template>
 
-            <template v-if="displayedPhase === 'knockout'">
-            <section v-if="knockoutPhaseEntries.length > 0" class="results-section results-section--bracket">
+            <template v-if="isKnockoutDisplayedPhase">
+            <section v-if="showKnockoutBracketSection" class="results-section results-section--bracket">
                 <div class="results-sectionHeader">
                     <h2 class="results-sectionTitle">Tableau des phases finales</h2>
                     <div class="results-metaRow">
@@ -156,7 +162,7 @@
             </section>
 
             <knockout-phase-matches
-                    v-if="roundOf32Entry != null"
+                    v-if="showRoundOf16MatchesSection"
                     :phase-entry="roundOf32Entry"
                     :bracket-side-matches="roundOf32BracketSides">
             </knockout-phase-matches>
@@ -197,6 +203,9 @@
             return {
                 predictionsAllGames: this.$select('predictionsAllGames'),
                 activeTab: 'groups',
+                isMobileViewport: typeof window !== 'undefined'
+                    && window.matchMedia('(max-width: 849px)').matches,
+                mobileMediaQuery: null,
             }
         },
         computed: {
@@ -296,6 +305,40 @@
                     phase.totalMatches,
                 ))
             },
+            isRoundOf16Complete() {
+                if (this.roundOf32Entry == null) {
+                    return false
+                }
+
+                return isPhaseResultsComplete(
+                    this.roundOf32Entry.playedMatches,
+                    this.roundOf32Entry.totalMatches,
+                )
+            },
+            showRoundOf16Tab() {
+                return this.isMobileViewport
+                    && this.showPhaseTabs
+                    && this.roundOf32Entry != null
+            },
+            isKnockoutDisplayedPhase() {
+                return this.displayedPhase === 'knockout'
+                    || this.displayedPhase === 'roundOf16'
+            },
+            showKnockoutBracketSection() {
+                return this.knockoutPhaseEntries.length > 0
+                    && this.displayedPhase === 'knockout'
+            },
+            showRoundOf16MatchesSection() {
+                if (this.roundOf32Entry == null) {
+                    return false
+                }
+
+                if (this.displayedPhase === 'roundOf16') {
+                    return true
+                }
+
+                return this.displayedPhase === 'knockout' && !this.isMobileViewport
+            },
             knockoutTotalMatches() {
                 return this.knockoutPhaseEntries.reduce(
                     (total, phase) => total + phase.totalMatches,
@@ -325,6 +368,10 @@
             },
             displayedPhase() {
                 if (this.showPhaseTabs) {
+                    if (this.activeTab === 'roundOf16' && !this.showRoundOf16Tab) {
+                        return 'knockout'
+                    }
+
                     return this.activeTab
                 }
 
@@ -334,6 +381,26 @@
 
                 return 'groups'
             },
+        },
+        ready() {
+            if (typeof window === 'undefined') {
+                return
+            }
+
+            this.mobileMediaQuery = window.matchMedia('(max-width: 849px)')
+            this.onMobileViewportChange = () => {
+                this.isMobileViewport = this.mobileMediaQuery.matches
+
+                if (!this.isMobileViewport && this.activeTab === 'roundOf16') {
+                    this.activeTab = 'knockout'
+                }
+            }
+            this.mobileMediaQuery.addListener(this.onMobileViewportChange)
+        },
+        destroyed() {
+            if (this.mobileMediaQuery != null && this.onMobileViewportChange != null) {
+                this.mobileMediaQuery.removeListener(this.onMobileViewportChange)
+            }
         },
         watch: {
             showGroupsContent(hasGroups) {
@@ -345,6 +412,15 @@
                 if (!hasKnockout && this.activeTab === 'knockout' && this.showGroupsContent) {
                     this.activeTab = 'groups'
                 }
+
+                if (!hasKnockout && this.activeTab === 'roundOf16') {
+                    this.activeTab = 'groups'
+                }
+            },
+            showRoundOf16Tab(hasRoundOf16Tab) {
+                if (!hasRoundOf16Tab && this.activeTab === 'roundOf16') {
+                    this.activeTab = 'knockout'
+                }
             },
         },
         route: {
@@ -355,6 +431,13 @@
         },
         methods: {
             setInitialActiveTab() {
+                if (this.showRoundOf16Tab
+                        && this.isGroupPhaseComplete
+                        && !this.isRoundOf16Complete) {
+                    this.activeTab = 'roundOf16'
+                    return
+                }
+
                 if (this.isGroupPhaseComplete && this.showKnockoutContent) {
                     this.activeTab = 'knockout'
                     return
@@ -433,6 +516,23 @@
     @media (min-width: 500px) {
         .results-tabs {
             justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 849px) {
+        .results-tabs {
+            gap: 6px;
+        }
+
+        .btn.results-tab {
+            font-size: 12px;
+            padding: 8px 10px;
+        }
+    }
+
+    @media (min-width: 850px) {
+        .results-tab--mobileOnly {
+            display: none;
         }
     }
 

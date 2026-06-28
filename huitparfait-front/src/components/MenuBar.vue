@@ -12,14 +12,20 @@
             <span class="menuitem-label">Pronostics</span>
         </div>
         <div class="sub-menubar" :class="{ 'visible': submenu.predictions }">
-            <a class="sub-menuitem" v-link="{ name: 'predictions', activeClass: 'sub-menuitem--active', params: { period: 'matchs-precedents' } }">
+            <a class="sub-menuitem"
+                    @click="closeSubmenu"
+                    v-link="{ name: 'predictions', activeClass: 'sub-menuitem--active', params: { period: 'matchs-precedents' } }">
                 Matchs précédents
             </a>
-            <a class="sub-menuitem" v-link="{ name: 'predictions', activeClass: 'sub-menuitem--active', params: { period: 'prochains-matchs' } }">
+            <a class="sub-menuitem"
+                    @click="closeSubmenu"
+                    v-link="{ name: 'predictions', activeClass: 'sub-menuitem--active', params: { period: 'prochains-matchs' } }">
                 Prochains matchs
                 <span v-if="unfilledPredictionsCount > 0" class="sub-menuitem-badge">{{ unfilledPredictionsCount }}</span>
             </a>
-            <a class="sub-menuitem" v-link="{ name: 'results', activeClass: 'sub-menuitem--active' }">
+            <a class="sub-menuitem"
+                    @click="closeSubmenu"
+                    v-link="{ name: 'results', activeClass: 'sub-menuitem--active' }">
                 Résultats
             </a>
         </div>
@@ -86,6 +92,11 @@
                 }
 
                 return store.dispatch(hideSubmenu())
+            },
+            closeSubmenu() {
+                if (this.submenu !== false) {
+                    return store.dispatch(hideSubmenu())
+                }
             },
         },
     }

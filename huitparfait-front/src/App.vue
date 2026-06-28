@@ -1,7 +1,13 @@
 <template>
     <div class="main" :class="{ 'isDisconnected': user == null }">
         <title-bar class="titlebar" :class="{ 'isDisconnected': user == null }"></title-bar>
-        <router-view class="view" :class="{ 'view--hidden': submenu != false }"></router-view>
+        <div class="view-container">
+            <router-view class="view" :class="{ 'view--hidden': submenu != false }"></router-view>
+            <div v-if="submenu != false"
+                    class="view-backdrop"
+                    @click="closeSubmenu">
+            </div>
+        </div>
         <menu-bar class="menubar" :class="{ 'isDisconnected': user == null }"></menu-bar>
     </div>
 </template>
@@ -9,6 +15,8 @@
 <script type="text/babel">
     import TitleBar from 'components/TitleBar'
     import MenuBar from 'components/MenuBar'
+    import store from './state/configureStore'
+    import { hideSubmenu } from './state/actions/submenu'
 
     export default {
         replace: false,
@@ -21,6 +29,13 @@
                 user: this.$select('user'),
                 submenu: this.$select('submenu'),
             }
+        },
+        methods: {
+            closeSubmenu() {
+                if (this.submenu !== false) {
+                    store.dispatch(hideSubmenu())
+                }
+            },
         },
     }
 </script>
@@ -81,8 +96,28 @@
         }
     }
 
+    .view-container {
+        position: relative;
+    }
+
     .view {
         position: relative;
+    }
+
+    .view-backdrop {
+        background-color: rgba(255, 255, 255, 0.8);
+        height: 100%;
+        left: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
+        z-index: 1;
+    }
+
+    @media (min-width: 850px) {
+        .view-backdrop {
+            display: none;
+        }
     }
 
     @supports (pointer-events: none) {
@@ -103,7 +138,6 @@
 
         .view.view--hidden:after {
             opacity: 0.8;
-            pointer-events: auto;
         }
     }
 
