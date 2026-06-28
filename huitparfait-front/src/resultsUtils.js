@@ -1,6 +1,11 @@
+import { parseSlotLabel } from './bracket-shared/bracketSlotParser'
 import { getPhaseDisplayLabel } from './bracket-shared/bracketResolver'
 import { isKnockoutPhase } from './bracket-shared/knockoutWinner'
 import { applyBracketStateToGame } from './bracketUtils'
+
+export function isPhaseResultsComplete(playedCount, totalCount) {
+    return totalCount > 0 && playedCount === totalCount
+}
 
 export const KNOCKOUT_PHASE_ORDER = [
     '16èmes de finale',
@@ -33,24 +38,87 @@ function resolvedTeamFromGame(game, side) {
     return game.bracketResolvedTeamB
 }
 
-export function buildTeamDisplay(game, side, mode) {
-    if (mode === 'predictive') {
-        const resolved = resolvedTeamFromGame(game, side)
-        if (resolved != null && (resolved.countryCode || resolved.countryName)) {
-            return {
-                type: 'team',
-                countryCode: resolved.countryCode,
-                countryName: resolved.countryName,
-            }
+function resolvedSourceFromGame(game, side) {
+    if (side === 'A') {
+        return game.bracketResolvedSourceA
+    }
+
+    return game.bracketResolvedSourceB
+}
+
+function teamDisplayFromResolved(resolved) {
+    return {
+        type: 'team',
+        countryCode: resolved.countryCode,
+        countryName: resolved.countryName,
+    }
+}
+
+function teamFromCandidates(candidates, sources) {
+    if (candidates == null || candidates.length === 0) {
+        return null
+    }
+
+    for (const source of sources) {
+        const candidate = candidates.find((entry) => entry.source === source)
+        if (candidate != null
+                && candidate.team != null
+                && (candidate.team.countryCode || candidate.team.countryName)) {
+            return candidate.team
         }
     }
 
+    return null
+}
+
+function candidatesFromGame(game, side) {
+    if (side === 'A') {
+        return game.bracketCandidatesTeamA
+    }
+
+    return game.bracketCandidatesTeamB
+}
+
+export function buildTeamDisplay(game, side, mode) {
     const team = teamFromGame(game, side)
-    if (team.countryCode) {
+    const slotLabel = team.countryName != null && parseSlotLabel(team.countryName) != null
+
+    if (team.countryCode && !slotLabel) {
         return {
             type: 'team',
             countryCode: team.countryCode,
             countryName: team.countryName,
+        }
+    }
+
+    const resolved = resolvedTeamFromGame(game, side)
+    const resolvedSource = resolvedSourceFromGame(game, side)
+    const candidates = candidatesFromGame(game, side)
+
+    if (mode === 'predictive') {
+        const predictionTeam = teamFromCandidates(candidates, ['prediction'])
+        if (predictionTeam != null) {
+            return teamDisplayFromResolved(predictionTeam)
+        }
+
+        const knownTeam = teamFromCandidates(candidates, ['result', 'partialResult', 'db'])
+        if (knownTeam != null) {
+            return teamDisplayFromResolved(knownTeam)
+        }
+
+        if (resolved != null && (resolved.countryCode || resolved.countryName)) {
+            return teamDisplayFromResolved(resolved)
+        }
+    } else {
+        const liveTeam = teamFromCandidates(candidates, ['db', 'result', 'partialResult'])
+        if (liveTeam != null) {
+            return teamDisplayFromResolved(liveTeam)
+        }
+
+        if (resolvedSource !== 'prediction'
+                && resolved != null
+                && (resolved.countryCode || resolved.countryName)) {
+            return teamDisplayFromResolved(resolved)
         }
     }
 
@@ -68,15 +136,6 @@ export function buildTeamDisplay(game, side, mode) {
 }
 
 export function buildScoreDisplay(game, mode) {
-    if (game.goalsTeamA != null && game.goalsTeamB != null) {
-        return {
-            goalsA: game.goalsTeamA,
-            goalsB: game.goalsTeamB,
-            penaltiesA: game.penaltiesTeamA,
-            penaltiesB: game.penaltiesTeamB,
-        }
-    }
-
     if (mode === 'predictive'
             && game.predictionScoreTeamA != null
             && game.predictionScoreTeamB != null) {
@@ -89,13 +148,23 @@ export function buildScoreDisplay(game, mode) {
         }
     }
 
+    if (game.goalsTeamA != null && game.goalsTeamB != null) {
+        return {
+            goalsA: game.goalsTeamA,
+            goalsB: game.goalsTeamB,
+            penaltiesA: game.penaltiesTeamA,
+            penaltiesB: game.penaltiesTeamB,
+        }
+    }
+
     return null
 }
 
-function buildMatchEntry(game) {
+export function buildMatchEntry(game) {
     return {
         gameId: game.gameId,
         gameName: game.gameName,
+        startsAt: game.startsAt,
         live: {
             teamA: buildTeamDisplay(game, 'A', 'live'),
             teamB: buildTeamDisplay(game, 'B', 'live'),

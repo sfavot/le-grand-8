@@ -31,9 +31,39 @@ export function fetchAdminGames({ filled = false } = {}) {
                tb.countryName AS countryNameTeamB,
                piga.goals     AS goalsTeamA,
                pigb.goals     AS goalsTeamB,
+               piga.penalties AS penaltiesTeamA,
+               pigb.penalties AS penaltiesTeamB,
                r.text         AS riskTitle,
                ufg.happened   AS riskHappened
         ORDER BY g.startsAt ${order}`)
+}
+
+export function normalizePenalties({
+    phase,
+    goalsTeamA,
+    goalsTeamB,
+    penaltiesTeamA,
+    penaltiesTeamB,
+}) {
+    const isKnockout = phase != null && phase !== 'Groupes'
+    if (!isKnockout || goalsTeamA !== goalsTeamB) {
+        return { penaltiesTeamA: null, penaltiesTeamB: null }
+    }
+
+    const hasPenaltiesA = penaltiesTeamA != null
+    const hasPenaltiesB = penaltiesTeamB != null
+    if (hasPenaltiesA !== hasPenaltiesB) {
+        throw new Error('Renseigne les deux scores aux tirs au but, ou aucun.')
+    }
+
+    if (hasPenaltiesA && penaltiesTeamA === penaltiesTeamB) {
+        throw new Error('Les tirs au but ne peuvent pas être à égalité.')
+    }
+
+    return {
+        penaltiesTeamA: hasPenaltiesA ? penaltiesTeamA : null,
+        penaltiesTeamB: hasPenaltiesB ? penaltiesTeamB : null,
+    }
 }
 
 export function fetchAdminGamesSchedule() {
@@ -94,7 +124,32 @@ export async function updateGameSchedule({ gameId, gameName, phase, stadium, cit
     return updated
 }
 
-export async function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHappened }) {
+export async function updateGameResults({
+    gameId,
+    goalsTeamA,
+    goalsTeamB,
+    riskHappened,
+    penaltiesTeamA = null,
+    penaltiesTeamB = null,
+}) {
+    const game = await cypherOne(`
+        MATCH (g:Game { id: { gameId } })
+        WHERE g.startsAt < timestamp()
+        RETURN g.phase AS phase`,
+        { gameId })
+
+    if (game == null) {
+        throw new Error('Match introuvable ou pas encore commencé.')
+    }
+
+    const penalties = normalizePenalties({
+        phase: game.phase,
+        goalsTeamA,
+        goalsTeamB,
+        penaltiesTeamA,
+        penaltiesTeamB,
+    })
+
     const updated = await cypherOne(`
         MATCH (g:Game { id: { gameId } })
         WHERE g.startsAt < timestamp()
@@ -103,6 +158,8 @@ export async function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHa
         MATCH (r:Risk)-[ufg:USED_FOR_GAME]->(g)
         SET piga.goals = { goalsTeamA },
             pigb.goals = { goalsTeamB },
+            piga.penalties = { penaltiesTeamA },
+            pigb.penalties = { penaltiesTeamB },
             ufg.happened = { riskHappened }
         RETURN g.id AS gameId`,
         {
@@ -110,6 +167,8 @@ export async function updateGameResults({ gameId, goalsTeamA, goalsTeamB, riskHa
             goalsTeamA,
             goalsTeamB,
             riskHappened,
+            penaltiesTeamA: penalties.penaltiesTeamA,
+            penaltiesTeamB: penalties.penaltiesTeamB,
         })
 
     await cypher(`

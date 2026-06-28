@@ -31,7 +31,7 @@
         box-sizing: border-box;
         margin: 0 auto;
         padding: 48px 0 72px 0;
-        max-width: 1400px;
+        max-width: 1680px;
         width: 100%;
     }
 

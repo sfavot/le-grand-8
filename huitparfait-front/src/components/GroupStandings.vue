@@ -1,5 +1,5 @@
 <template>
-    <div class="page--results">
+    <div class="page--results" :class="{ 'page--results--knockout': displayedPhase === 'knockout' }">
 
         <card-title>Résultats</card-title>
 
@@ -8,14 +8,27 @@
         </card>
 
         <template v-else>
-            <section v-if="groupEntries.length > 0" class="results-section">
-                <h2 class="results-sectionTitle">Phase de groupes</h2>
+            <div v-if="showPhaseTabs" class="results-tabs">
+                <btn class="results-tab"
+                        :class="{ 'results-tab--active': activeTab === 'groups' }"
+                        @click="activeTab = 'groups'">
+                    Phase de groupes
+                </btn>
+                <btn class="results-tab"
+                        :class="{ 'results-tab--active': activeTab === 'knockout' }"
+                        @click="activeTab = 'knockout'">
+                    Phase finale
+                </btn>
+            </div>
 
+            <template v-if="displayedPhase === 'groups'">
+            <section v-if="groupEntries.length > 0" class="results-section">
                 <card-list wide class="results-list">
                     <card wide class="results-card" v-for="entry in groupEntries" track-by="group">
                         <h3 class="results-groupTitle">Groupe {{* entry.group }}</h3>
 
-                        <div class="results-tables">
+                        <div class="results-tables"
+                                :class="{ 'results-tables--single': isPhaseComplete(entry.playedGames, entry.totalGames) }">
                             <section class="results-tableSection">
                                 <h4 class="results-tableSectionTitle">En direct</h4>
                                 <p class="results-meta">
@@ -61,7 +74,8 @@
                                 </table>
                             </section>
 
-                            <section class="results-tableSection">
+                            <section v-if="!isPhaseComplete(entry.playedGames, entry.totalGames)"
+                                    class="results-tableSection">
                                 <h4 class="results-tableSectionTitle">Selon tes pronos</h4>
                                 <p class="results-meta">
                                     {{* entry.predictedGames }} / {{* entry.totalGames }} matchs renseignés
@@ -114,73 +128,41 @@
                 v-if="showThirdPlaceRanking"
                 :live-entries="thirdPlaceLiveEntries"
                 :predictive-entries="thirdPlacePredictiveEntries"
-                :expected-group-count="expectedGroupCount">
+                :expected-group-count="expectedGroupCount"
+                :show-predictive="!isGroupPhaseComplete">
             </third-place-ranking>
+            </template>
 
-            <section v-for="phase in knockoutPhaseEntries" class="results-section" track-by="phase">
-                <h2 class="results-sectionTitle">{{* phase.phaseLabel }}</h2>
-
-                <card wide class="results-card">
-                    <div class="results-tables">
-                        <section class="results-tableSection">
-                            <h4 class="results-tableSectionTitle">En direct</h4>
-                            <p class="results-meta">
-                                {{* phase.playedMatches }} / {{* phase.totalMatches }} matchs joués
-                            </p>
-                            <div class="results-matches">
-                                <div class="results-match" v-for="match in phase.matches" track-by="gameId">
-                                    <div class="results-matchName">{{* match.gameName }}</div>
-                                    <div class="results-matchLine">
-                                        <div class="results-matchTeam results-matchTeam--home">
-                                            <team-display side="home" :team="match.live.teamA"></team-display>
-                                        </div>
-                                        <div class="results-matchScore">
-                                            <template v-if="match.live.score">
-                                                {{* match.live.score.goalsA }} - {{* match.live.score.goalsB }}
-                                                <span v-if="hasPenalties(match.live.score)" class="results-penalties">
-                                                    (tab. {{* match.live.score.penaltiesA }} - {{* match.live.score.penaltiesB }})
-                                                </span>
-                                            </template>
-                                            <span v-else class="results-matchPending">—</span>
-                                        </div>
-                                        <div class="results-matchTeam results-matchTeam--away">
-                                            <team-display side="away" :team="match.live.teamB"></team-display>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="results-tableSection">
-                            <h4 class="results-tableSectionTitle">Selon tes pronos</h4>
-                            <p class="results-meta">
-                                {{* phase.predictedMatches }} / {{* phase.totalMatches }} matchs renseignés
-                            </p>
-                            <div class="results-matches">
-                                <div class="results-match" v-for="match in phase.matches" track-by="gameId">
-                                    <div class="results-matchName">{{* match.gameName }}</div>
-                                    <div class="results-matchLine">
-                                        <div class="results-matchTeam results-matchTeam--home">
-                                            <team-display side="home" :team="match.predictive.teamA"></team-display>
-                                        </div>
-                                        <div class="results-matchScore">
-                                            <template v-if="match.predictive.score">
-                                                {{* match.predictive.score.goalsA }} - {{* match.predictive.score.goalsB }}
-                                            </template>
-                                            <span v-else class="results-matchPending">—</span>
-                                        </div>
-                                        <div class="results-matchTeam results-matchTeam--away">
-                                            <team-display side="away" :team="match.predictive.teamB"></team-display>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
+            <template v-if="displayedPhase === 'knockout'">
+            <section v-if="knockoutPhaseEntries.length > 0" class="results-section results-section--bracket">
+                <div class="results-sectionHeader">
+                    <h2 class="results-sectionTitle">Tableau des phases finales</h2>
+                    <div class="results-metaRow">
+                        <p class="results-meta">
+                            {{* knockoutPlayedMatches }} / {{* knockoutTotalMatches }} matchs joués
+                        </p>
+                        <p v-if="!isKnockoutComplete" class="results-meta">
+                            {{* knockoutPredictedMatches }} / {{* knockoutTotalMatches }} matchs pronostiqués
+                        </p>
                     </div>
+                </div>
+                <card wide class="results-card results-card--bracket">
+                    <knockout-bracket
+                            :all-games="predictionsAllGames"
+                            :bracket-map="bracketMap"
+                            :show-predictive-toggle="!isKnockoutComplete">
+                    </knockout-bracket>
                 </card>
             </section>
 
-            <card v-if="groupEntries.length === 0 && knockoutPhaseEntries.length === 0" class="results-empty">
+            <knockout-phase-matches
+                    v-if="roundOf32Entry != null"
+                    :phase-entry="roundOf32Entry"
+                    :bracket-side-matches="roundOf32BracketSides">
+            </knockout-phase-matches>
+            </template>
+
+            <card v-if="!showGroupsContent && !showKnockoutContent" class="results-empty">
                 <p>Aucun résultat disponible pour le moment.</p>
             </card>
         </template>
@@ -199,18 +181,22 @@
         rankPredictiveThirdPlacedTeams,
     } from '../bracket-shared/groupStandings'
     import { enrichGamesWithBracket } from '../bracketUtils'
-    import { buildKnockoutPhaseEntries } from '../resultsUtils'
-    import TeamDisplay from './TeamDisplay'
+    import { buildKnockoutBracketData, splitRoundOf16MatchesByBracket } from '../knockoutBracketLayout'
+    import { buildKnockoutPhaseEntries, isPhaseResultsComplete } from '../resultsUtils'
     import ThirdPlaceRanking from './ThirdPlaceRanking'
+    import KnockoutBracket from './KnockoutBracket'
+    import KnockoutPhaseMatches from './KnockoutPhaseMatches'
 
     export default {
         components: {
-            TeamDisplay,
             ThirdPlaceRanking,
+            KnockoutBracket,
+            KnockoutPhaseMatches,
         },
         data() {
             return {
                 predictionsAllGames: this.$select('predictionsAllGames'),
+                activeTab: 'groups',
             }
         },
         computed: {
@@ -248,6 +234,22 @@
 
                 return buildKnockoutPhaseEntries(this.predictionsAllGames, this.bracketMap)
             },
+            roundOf32Entry() {
+                return this.knockoutPhaseEntries.find((entry) => entry.phase === '16èmes de finale') || null
+            },
+            knockoutBracketData() {
+                return buildKnockoutBracketData(this.predictionsAllGames, this.bracketMap)
+            },
+            roundOf32BracketSides() {
+                if (this.roundOf32Entry == null) {
+                    return null
+                }
+
+                return splitRoundOf16MatchesByBracket(
+                    this.roundOf32Entry.matches,
+                    this.knockoutBracketData,
+                )
+            },
             expectedGroupCount() {
                 if (this.predictionsAllGames == null) {
                     return 12
@@ -274,23 +276,109 @@
 
                 return rankPredictiveThirdPlacedTeams(this.predictionsAllGames)
             },
+            isGroupPhaseComplete() {
+                if (this.groupEntries.length === 0) {
+                    return false
+                }
+
+                return this.groupEntries.every((entry) => isPhaseResultsComplete(
+                    entry.playedGames,
+                    entry.totalGames,
+                ))
+            },
+            isKnockoutComplete() {
+                if (this.knockoutPhaseEntries.length === 0) {
+                    return false
+                }
+
+                return this.knockoutPhaseEntries.every((phase) => isPhaseResultsComplete(
+                    phase.playedMatches,
+                    phase.totalMatches,
+                ))
+            },
+            knockoutTotalMatches() {
+                return this.knockoutPhaseEntries.reduce(
+                    (total, phase) => total + phase.totalMatches,
+                    0,
+                )
+            },
+            knockoutPlayedMatches() {
+                return this.knockoutPhaseEntries.reduce(
+                    (total, phase) => total + phase.playedMatches,
+                    0,
+                )
+            },
+            knockoutPredictedMatches() {
+                return this.knockoutPhaseEntries.reduce(
+                    (total, phase) => total + phase.predictedMatches,
+                    0,
+                )
+            },
+            showGroupsContent() {
+                return this.groupEntries.length > 0 || this.showThirdPlaceRanking
+            },
+            showKnockoutContent() {
+                return this.knockoutPhaseEntries.length > 0
+            },
+            showPhaseTabs() {
+                return this.showGroupsContent && this.showKnockoutContent
+            },
+            displayedPhase() {
+                if (this.showPhaseTabs) {
+                    return this.activeTab
+                }
+
+                if (this.showKnockoutContent && !this.showGroupsContent) {
+                    return 'knockout'
+                }
+
+                return 'groups'
+            },
+        },
+        watch: {
+            showGroupsContent(hasGroups) {
+                if (!hasGroups && this.activeTab === 'groups' && this.showKnockoutContent) {
+                    this.activeTab = 'knockout'
+                }
+            },
+            showKnockoutContent(hasKnockout) {
+                if (!hasKnockout && this.activeTab === 'knockout' && this.showGroupsContent) {
+                    this.activeTab = 'groups'
+                }
+            },
         },
         route: {
             data() {
                 return store.dispatch(fetchAllPredictionsGames())
+                    .then(() => this.setInitialActiveTab())
             },
         },
         methods: {
+            setInitialActiveTab() {
+                if (this.isGroupPhaseComplete && this.showKnockoutContent) {
+                    this.activeTab = 'knockout'
+                    return
+                }
+
+                if (this.showGroupsContent) {
+                    this.activeTab = 'groups'
+                    return
+                }
+
+                if (this.showKnockoutContent) {
+                    this.activeTab = 'knockout'
+                }
+            },
             flagSrc,
             onFlagError,
-            hasPenalties(score) {
-                return score.penaltiesA != null && score.penaltiesB != null
-            },
             standingRowClass(rank) {
                 return {
                     'results-row--qualified': rank <= 2,
                     'results-row--third': rank === 3,
                 }
+            },
+            isPhaseComplete(playedCount, totalCount) {
+                return isPhaseResultsComplete(playedCount, totalCount)
             },
         },
     }
@@ -302,6 +390,27 @@
         padding-bottom: 20px;
     }
 
+    @media (min-width: 850px) {
+        .page--results--knockout {
+            box-sizing: border-box;
+            margin-left: -10px;
+            margin-right: -10px;
+            padding-left: 10px;
+            padding-right: 10px;
+            width: calc(100% + 20px);
+        }
+    }
+
+    @media (min-width: 1320px) {
+        .page--results--knockout {
+            margin-left: -30px;
+            margin-right: -30px;
+            padding-left: 30px;
+            padding-right: 30px;
+            width: calc(100% + 60px);
+        }
+    }
+
     .results-empty {
         margin: 0 8px 15px 8px;
     }
@@ -311,6 +420,31 @@
         text-align: center;
         color: #555;
         font-style: italic;
+    }
+
+    .results-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        margin: 0 8px 16px 8px;
+    }
+
+    @media (min-width: 500px) {
+        .results-tabs {
+            justify-content: flex-start;
+        }
+    }
+
+    .btn.results-tab {
+        margin: 0;
+    }
+
+    .btn.results-tab.results-tab--active {
+        background: #4db788;
+        border-color: #49996f;
+        box-shadow: 0 2px 0 #49996f;
+        color: #fff;
     }
 
     .results-section {
@@ -326,8 +460,36 @@
         text-transform: capitalize;
     }
 
+    .results-sectionHeader .results-sectionTitle {
+        padding-bottom: 4px;
+    }
+
+    .results-metaRow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 0 10px 10px 10px;
+    }
+
+    .results-metaRow .results-meta {
+        margin: 0;
+    }
+
     .results-card {
         margin-bottom: 15px;
+    }
+
+    .results-card--bracket {
+        box-sizing: border-box;
+        padding-bottom: 8px;
+    }
+
+    @media (min-width: 500px) {
+        .page--results--knockout .results-card--bracket {
+            margin-left: 0;
+            margin-right: 0;
+            width: 100%;
+        }
     }
 
     .results-groupTitle {
@@ -351,6 +513,11 @@
         .results-tableSection {
             flex: 1 1 0;
             min-width: 0;
+        }
+
+        .results-tables--single .results-tableSection {
+            flex-basis: 100%;
+            max-width: 100%;
         }
     }
 
@@ -411,69 +578,6 @@
 
     .results-row--third {
         background-color: #fff9e8;
-    }
-
-    .results-matches {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .results-match {
-        border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
-    }
-
-    .results-match:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-
-    .results-matchName {
-        color: #777;
-        font-size: 12px;
-        margin-bottom: 6px;
-    }
-
-    .results-matchLine {
-        align-items: center;
-        display: flex;
-        gap: 8px;
-    }
-
-    .results-matchTeam {
-        flex: 1 1 0;
-        min-width: 0;
-    }
-
-    .results-matchTeam--home {
-        display: flex;
-        justify-content: flex-end;
-    }
-
-    .results-matchTeam--away {
-        display: flex;
-        justify-content: flex-start;
-    }
-
-    .results-matchScore {
-        flex: 0 0 auto;
-        font-size: 15px;
-        font-weight: bold;
-        min-width: 52px;
-        text-align: center;
-    }
-
-    .results-matchPending {
-        color: #bbb;
-        font-weight: normal;
-    }
-
-    .results-penalties {
-        color: #777;
-        display: block;
-        font-size: 11px;
-        font-weight: normal;
     }
 
 </style>

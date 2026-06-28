@@ -454,8 +454,8 @@ export function resolveGroupRankCandidates(allGames, rank, group) {
         }
     }
 
-    const predictiveStandings = computeGroupStandings(groupGames)
-    if (predictiveStandings != null && predictiveStandings.length >= rank) {
+    const predictiveStandings = computePredictiveGroupStandings(groupGames)
+    if (predictiveStandings.length >= rank) {
         candidates.push({
             team: predictiveStandings[rank - 1].team,
             source: 'prediction',

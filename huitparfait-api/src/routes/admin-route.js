@@ -95,20 +95,30 @@ export const plugin = {
                         payload: Joi.object({
                             goalsTeamA: Joi.number().integer().min(0).max(99).required(),
                             goalsTeamB: Joi.number().integer().min(0).max(99).required(),
+                            penaltiesTeamA: Joi.number().integer().min(0).max(99).allow(null).optional(),
+                            penaltiesTeamB: Joi.number().integer().min(0).max(99).allow(null).optional(),
                             riskHappened: Joi.boolean().required(),
                         }),
                     },
                     handler: async (request, _h) => {
-                        const updated = await updateGameResults({
-                            gameId: request.params.gameId,
-                            ...request.payload,
-                        })
-                        const pronostics = await calculatePronostic()
+                        try {
+                            const updated = await updateGameResults({
+                                gameId: request.params.gameId,
+                                ...request.payload,
+                            })
+                            const pronostics = await calculatePronostic()
 
-                        return {
-                            ok: true,
-                            gameId: updated.gameId,
-                            pronosticsUpdated: pronostics?.length ?? 0,
+                            return {
+                                ok: true,
+                                gameId: updated.gameId,
+                                pronosticsUpdated: pronostics?.length ?? 0,
+                            }
+                        } catch (err) {
+                            if (err.message?.includes('tirs au but')
+                                    || err.message?.includes('Match introuvable')) {
+                                throw Boom.badRequest(err.message)
+                            }
+                            throw err
                         }
                     },
                 },

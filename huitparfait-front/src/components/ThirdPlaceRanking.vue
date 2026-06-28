@@ -27,7 +27,8 @@
         </card>
 
         <card wide class="thirdPlace-card">
-            <div class="thirdPlace-tables">
+            <div class="thirdPlace-tables"
+                    :class="{ 'thirdPlace-tables--single': !showPredictive }">
                 <section class="thirdPlace-tableSection">
                     <h4 class="thirdPlace-tableSectionTitle">En direct</h4>
                     <p v-if="liveScenarioNumber != null" class="thirdPlace-meta thirdPlace-scenario">
@@ -74,7 +75,7 @@
                     </table>
                 </section>
 
-                <section class="thirdPlace-tableSection">
+                <section v-if="showPredictive" class="thirdPlace-tableSection">
                     <h4 class="thirdPlace-tableSectionTitle">Selon tes pronos</h4>
                     <p v-if="predictiveScenarioNumber != null" class="thirdPlace-meta thirdPlace-scenario">
                         Scénario FIFA n°&nbsp;{{* predictiveScenarioNumber }}
@@ -140,6 +141,10 @@
             expectedGroupCount: {
                 type: Number,
                 default: 12,
+            },
+            showPredictive: {
+                type: Boolean,
+                default: true,
             },
         },
         computed: {
@@ -238,6 +243,11 @@
         .thirdPlace-tableSection {
             flex: 1 1 0;
             min-width: 0;
+        }
+
+        .thirdPlace-tables--single .thirdPlace-tableSection {
+            flex-basis: 100%;
+            max-width: 100%;
         }
     }
 

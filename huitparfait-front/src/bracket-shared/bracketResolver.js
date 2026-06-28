@@ -76,7 +76,11 @@ function teamFromCandidate(slot, source) {
 
     if (source === 'prediction') {
         const fallback = slot.candidates.find((candidate) => candidate.source === 'prediction')
-        return fallback != null ? fallback.team : null
+        if (fallback != null) {
+            return fallback.team
+        }
+
+        return slot.resolved
     }
 
     return slot.resolved

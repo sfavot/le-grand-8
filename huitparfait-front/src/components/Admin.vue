@@ -105,6 +105,22 @@
                         </label>
                     </div>
 
+                    <div v-if="showPenalties(game)" class="admin-penalties">
+                        <p class="admin-penalties-hint">
+                            Match nul en phase finale : renseigne les tirs au but pour débloquer le tableau.
+                        </p>
+                        <div class="admin-scores">
+                            <label>T.A.B. équipe A
+                                <input class="admin-input admin-input--score" type="number" min="0" max="99"
+                                        v-model="game.penaltiesTeamA"/>
+                            </label>
+                            <label>T.A.B. équipe B
+                                <input class="admin-input admin-input--score" type="number" min="0" max="99"
+                                        v-model="game.penaltiesTeamB"/>
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="admin-risk">
                         <p class="admin-risk-text">{{* game.riskTitle }}</p>
                         <div class="admin-risk-choices">
@@ -372,6 +388,8 @@
                             ...game,
                             goalsTeamA: game.goalsTeamA != null ? game.goalsTeamA : '',
                             goalsTeamB: game.goalsTeamB != null ? game.goalsTeamB : '',
+                            penaltiesTeamA: game.penaltiesTeamA != null ? game.penaltiesTeamA : '',
+                            penaltiesTeamB: game.penaltiesTeamB != null ? game.penaltiesTeamB : '',
                             riskHappened: game.riskHappened === true || game.riskHappened === false
                                 ? game.riskHappened
                                 : null,
@@ -394,21 +412,69 @@
                         this.loading = false
                     })
             },
+            isKnockoutGame(game) {
+                return game.phase != null && game.phase !== 'Groupes'
+            },
+            showPenalties(game) {
+                if (!this.isKnockoutGame(game)) {
+                    return false
+                }
+
+                const goalsA = Number(game.goalsTeamA)
+                const goalsB = Number(game.goalsTeamB)
+                return !Number.isNaN(goalsA) && !Number.isNaN(goalsB) && goalsA === goalsB
+            },
+            parseOptionalScore(value) {
+                if (value === '' || value == null) {
+                    return null
+                }
+
+                return Number(value)
+            },
             saveGame(game) {
                 if (game.riskHappened !== true && game.riskHappened !== false) {
                     game.saveError = 'Indique si la risquette est réalisée ou non.'
                     return
                 }
 
+                const goalsTeamA = Number(game.goalsTeamA)
+                const goalsTeamB = Number(game.goalsTeamB)
+                const penaltiesTeamA = this.parseOptionalScore(game.penaltiesTeamA)
+                const penaltiesTeamB = this.parseOptionalScore(game.penaltiesTeamB)
+
+                if (this.showPenalties(game)) {
+                    const hasPenaltiesA = penaltiesTeamA != null
+                    const hasPenaltiesB = penaltiesTeamB != null
+                    if (hasPenaltiesA !== hasPenaltiesB) {
+                        game.saveError = 'Renseigne les deux scores aux tirs au but, ou aucun.'
+                        return
+                    }
+
+                    if (hasPenaltiesA && penaltiesTeamA === penaltiesTeamB) {
+                        game.saveError = 'Les tirs au but ne peuvent pas être à égalité.'
+                        return
+                    }
+                }
+
                 game.saving = true
                 game.saveError = null
                 game.saveOk = false
 
-                saveAdminGame(game.gameId, {
-                    goalsTeamA: Number(game.goalsTeamA),
-                    goalsTeamB: Number(game.goalsTeamB),
+                const payload = {
+                    goalsTeamA,
+                    goalsTeamB,
                     riskHappened: game.riskHappened === true || game.riskHappened === 'true',
-                })
+                }
+
+                if (this.showPenalties(game)) {
+                    payload.penaltiesTeamA = penaltiesTeamA
+                    payload.penaltiesTeamB = penaltiesTeamB
+                } else {
+                    payload.penaltiesTeamA = null
+                    payload.penaltiesTeamB = null
+                }
+
+                saveAdminGame(game.gameId, payload)
                     .then((result) => {
                         game.saveOk = true
                         const count = result.pronosticsUpdated || 0
@@ -615,6 +681,16 @@
         flex-wrap: wrap;
         gap: 16px;
         margin-bottom: 12px;
+    }
+
+    .admin-penalties {
+        margin-bottom: 12px;
+    }
+
+    .admin-penalties-hint {
+        color: #555;
+        font-size: 0.95rem;
+        margin: 0 0 8px;
     }
 
     .admin-risk {

@@ -400,7 +400,7 @@ describe('enrichGamesWithBracket', () => {
 })
 
 describe('resolveGroupRank', () => {
-    it('retourne null si la poule est incomplète', () => {
+    it('déduit un candidat prono même si la poule est incomplète', () => {
         const fr = { id: 'fr', code: 'fr', name: 'France' }
         const ch = { id: 'ch', code: 'ch', name: 'Suisse' }
         const ro = { id: 'ro', code: 'ro', name: 'Roumanie' }
@@ -411,7 +411,7 @@ describe('resolveGroupRank', () => {
             makeGroupGame({ gameId: 'g2', gameName: 'Match 2', group: 'A', teamA: ch, teamB: al, predictionA: 1, predictionB: 0 }),
         ]
 
-        assert.equal(resolveGroupRank(games, 1, 'A'), null)
+        assert.equal(resolveGroupRank(games, 1, 'A').source, 'prediction')
     })
 
     it('retourne partialResult et prediction si la poule a des résultats partiels', () => {
