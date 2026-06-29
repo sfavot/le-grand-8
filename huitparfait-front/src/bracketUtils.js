@@ -69,6 +69,13 @@ function bracketDisplayTeam(game, side) {
         return game[fields.resolvedTeam]
     }
 
+    if (game.goalsTeamA != null
+            && game.goalsTeamB != null
+            && game[fields.resolvedTeam] != null
+            && game[fields.resolvedSource] !== 'prediction') {
+        return game[fields.resolvedTeam]
+    }
+
     return null
 }
 

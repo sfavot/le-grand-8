@@ -310,7 +310,11 @@
 <script type="text/babel">
     import Vue from 'vue'
     import store from '../state/configureStore'
-    import { fetchPredictions, savePrediction } from '../state/actions/predictions'
+    import {
+        fetchAllPredictionsGames,
+        fetchPredictions,
+        savePrediction,
+    } from '../state/actions/predictions'
     import { fetchUserPredictions as apiFetchUserPredictions } from '../WebApi'
     import GamePointsExplanation from './GamePointsExplanation'
     import _ from 'lodash'
@@ -422,8 +426,11 @@
             isNextMatchesPage() {
                 return !this.isReadOnly && this.$route.params.period === 'prochains-matchs'
             },
+            needsBracketMap() {
+                return this.isNextMatchesPage || this.isPreviousMatchesPage
+            },
             bracketMap() {
-                if (!this.isNextMatchesPage || this.predictionsAllGames == null) {
+                if (!this.needsBracketMap || this.predictionsAllGames == null) {
                     return null
                 }
 
@@ -517,12 +524,15 @@
                     this.otherPredictions = null
                     this.gamesByDayList = null
 
-                    return apiFetchUserPredictions(
-                        requestedUserId,
-                        'matchs-precedents',
-                        this.$route.query.groupId,
-                    )
-                        .then(({ user, predictions }) => {
+                    return Promise.all([
+                        apiFetchUserPredictions(
+                            requestedUserId,
+                            'matchs-precedents',
+                            this.$route.query.groupId,
+                        ),
+                        store.dispatch(fetchAllPredictionsGames()),
+                    ])
+                        .then(([{ user, predictions }]) => {
                             if (requestToken !== this.predictionsRequestToken) {
                                 return
                             }
@@ -544,8 +554,10 @@
 
                 switch (this.$route.params.period) {
                     case 'matchs-precedents':
-                        return store.dispatch(fetchPredictions('previous-days'))
-                            .then(() => this.syncOwnPredictionsFromStore('matchs-precedents'))
+                        return Promise.all([
+                            store.dispatch(fetchPredictions('previous-days')),
+                            store.dispatch(fetchAllPredictionsGames()),
+                        ]).then(() => this.syncOwnPredictionsFromStore('matchs-precedents'))
                     case 'prochains-matchs':
                         return store.dispatch(fetchPredictions('next-days'))
                             .then(() => this.syncOwnPredictionsFromStore('prochains-matchs'))
@@ -567,7 +579,7 @@
                 }
             },
             predictionsAllGames() {
-                if (this.isNextMatchesPage) {
+                if (this.needsBracketMap) {
                     this.reapplyBracketStateToGames()
                 }
             },
@@ -691,7 +703,7 @@
                     .value()
             },
             reapplyBracketStateToGames() {
-                if (!this.isNextMatchesPage || this.gamesByDayList == null) {
+                if (!this.needsBracketMap || this.gamesByDayList == null) {
                     return
                 }
 
