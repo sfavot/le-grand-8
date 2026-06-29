@@ -83,23 +83,25 @@
 
                     <div class="admin-teams">
                         <div class="admin-team">
-                            <img v-if="game.countryCodeTeamA" class="flag" :src="flagSrc(game.countryCodeTeamA)"
+                            <img v-if="adminTeamFlag(game.displayTeamA)" class="flag"
+                                    :src="flagSrc(adminTeamFlag(game.displayTeamA))"
                                     @error="onFlagError"/>
-                            <span>{{* game.countryNameTeamA }}</span>
+                            <span>{{* adminTeamLabel(game.displayTeamA) }}</span>
                         </div>
                         <div class="admin-team">
-                            <img v-if="game.countryCodeTeamB" class="flag" :src="flagSrc(game.countryCodeTeamB)"
+                            <img v-if="adminTeamFlag(game.displayTeamB)" class="flag"
+                                    :src="flagSrc(adminTeamFlag(game.displayTeamB))"
                                     @error="onFlagError"/>
-                            <span>{{* game.countryNameTeamB }}</span>
+                            <span>{{* adminTeamLabel(game.displayTeamB) }}</span>
                         </div>
                     </div>
 
                     <div class="admin-scores">
-                        <label>Buts équipe A
+                        <label>Buts {{* adminTeamLabel(game.displayTeamA) }}
                             <input class="admin-input admin-input--score" type="number" min="0" max="99"
                                     v-model="game.goalsTeamA" required/>
                         </label>
-                        <label>Buts équipe B
+                        <label>Buts {{* adminTeamLabel(game.displayTeamB) }}
                             <input class="admin-input admin-input--score" type="number" min="0" max="99"
                                     v-model="game.goalsTeamB" required/>
                         </label>
@@ -110,11 +112,11 @@
                             Match nul en phase finale : renseigne les tirs au but pour débloquer le tableau.
                         </p>
                         <div class="admin-scores">
-                            <label>T.A.B. équipe A
+                            <label>T.A.B. {{* adminTeamLabel(game.displayTeamA) }}
                                 <input class="admin-input admin-input--score" type="number" min="0" max="99"
                                         v-model="game.penaltiesTeamA"/>
                             </label>
-                            <label>T.A.B. équipe B
+                            <label>T.A.B. {{* adminTeamLabel(game.displayTeamB) }}
                                 <input class="admin-input admin-input--score" type="number" min="0" max="99"
                                         v-model="game.penaltiesTeamB"/>
                             </label>
@@ -227,6 +229,8 @@
         saveAdminGameSchedule,
         setAdminPassword,
     } from '../adminApi'
+    import { applyBracketStateToGame, enrichGamesWithBracket } from '../bracketUtils'
+    import { buildTeamDisplay } from '../resultsUtils'
 
     moment.locale('fr')
 
@@ -270,6 +274,25 @@
             editCity: city,
             editDate: venue.date,
             editTime: venue.time,
+            saving: false,
+            saveError: null,
+            saveOk: false,
+        }
+    }
+
+    function initAdminResultGame(game, bracketMap) {
+        const enriched = applyBracketStateToGame(game, bracketMap)
+        return {
+            ...game,
+            goalsTeamA: game.goalsTeamA != null ? game.goalsTeamA : '',
+            goalsTeamB: game.goalsTeamB != null ? game.goalsTeamB : '',
+            penaltiesTeamA: game.penaltiesTeamA != null ? game.penaltiesTeamA : '',
+            penaltiesTeamB: game.penaltiesTeamB != null ? game.penaltiesTeamB : '',
+            riskHappened: game.riskHappened === true || game.riskHappened === false
+                ? game.riskHappened
+                : null,
+            displayTeamA: buildTeamDisplay(enriched, 'A', 'live'),
+            displayTeamB: buildTeamDisplay(enriched, 'B', 'live'),
             saving: false,
             saveError: null,
             saveOk: false,
@@ -382,24 +405,55 @@
             },
             loadGames() {
                 this.loading = true
-                return fetchAdminGames({ filled: this.activeTab === 'filled' })
-                    .then((games) => {
-                        this.games = games.map((game) => ({
-                            ...game,
-                            goalsTeamA: game.goalsTeamA != null ? game.goalsTeamA : '',
-                            goalsTeamB: game.goalsTeamB != null ? game.goalsTeamB : '',
-                            penaltiesTeamA: game.penaltiesTeamA != null ? game.penaltiesTeamA : '',
-                            penaltiesTeamB: game.penaltiesTeamB != null ? game.penaltiesTeamB : '',
-                            riskHappened: game.riskHappened === true || game.riskHappened === false
-                                ? game.riskHappened
-                                : null,
-                            saving: false,
-                            saveError: null,
-                            saveOk: false,
-                        }))
+                return Promise.all([
+                    fetchAdminGames({ filled: this.activeTab === 'filled' }),
+                    fetchAdminGamesSchedule(),
+                ])
+                    .then(([games, allGames]) => {
+                        const bracketMap = enrichGamesWithBracket(allGames)
+                        this.games = games.map((game) => initAdminResultGame(game, bracketMap))
                     })
                     .finally(() => {
                         this.loading = false
+                    })
+            },
+            adminTeamLabel(displayTeam) {
+                if (displayTeam == null) {
+                    return 'À déterminer'
+                }
+
+                if (displayTeam.type === 'team') {
+                    return displayTeam.countryName
+                }
+
+                if (displayTeam.type === 'slot') {
+                    return displayTeam.label
+                }
+
+                return displayTeam.label || 'À déterminer'
+            },
+            adminTeamFlag(displayTeam) {
+                if (displayTeam != null && displayTeam.type === 'team') {
+                    return displayTeam.countryCode
+                }
+
+                return null
+            },
+            refreshGamesBracketDisplay() {
+                if (this.games.length === 0) {
+                    return Promise.resolve()
+                }
+
+                return fetchAdminGamesSchedule()
+                    .then((allGames) => {
+                        const bracketMap = enrichGamesWithBracket(allGames)
+                        this.games = this.games.map((game) => {
+                            const enriched = applyBracketStateToGame(game, bracketMap)
+                            return Object.assign({}, game, {
+                                displayTeamA: buildTeamDisplay(enriched, 'A', 'live'),
+                                displayTeamB: buildTeamDisplay(enriched, 'B', 'live'),
+                            })
+                        })
                     })
             },
             loadScheduleGames() {
@@ -486,6 +540,7 @@
                             if (index !== -1) {
                                 this.games.splice(index, 1)
                             }
+                            this.refreshGamesBracketDisplay()
                         }
                     })
                     .catch((err) => {

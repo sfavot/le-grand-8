@@ -69,19 +69,25 @@ export function normalizePenalties({
 export function fetchAdminGamesSchedule() {
     return cypher(`
         MATCH (g:Game)
-        MATCH (ta:Team)-[:PLAYS_IN_GAME { order: 1 }]->(g)
-        MATCH (tb:Team)-[:PLAYS_IN_GAME { order: 2 }]->(g)
+        MATCH (ta:Team)-[piga:PLAYS_IN_GAME { order: 1 }]->(g)
+        MATCH (tb:Team)-[pigb:PLAYS_IN_GAME { order: 2 }]->(g)
         RETURN g.id           AS gameId,
                g.name         AS gameName,
                g.phase        AS phase,
                g.city         AS city,
                g.stadium      AS stadium,
                g.startsAt     AS startsAt,
+               ta.id          AS idTeamA,
                ta.countryCode AS countryCodeTeamA,
                ta.countryName AS countryNameTeamA,
                ta.group       AS group,
+               tb.id          AS idTeamB,
                tb.countryCode AS countryCodeTeamB,
-               tb.countryName AS countryNameTeamB
+               tb.countryName AS countryNameTeamB,
+               piga.goals     AS goalsTeamA,
+               pigb.goals     AS goalsTeamB,
+               piga.penalties AS penaltiesTeamA,
+               pigb.penalties AS penaltiesTeamB
         ORDER BY g.startsAt ASC`)
 }
 
