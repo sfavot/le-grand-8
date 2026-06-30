@@ -109,13 +109,15 @@ export function scoreWinnerSide(score, mode = 'live') {
 }
 
 function getWinnerTeam(match, mode) {
-    const side = match[mode]
-    let winnerSide = scoreWinnerSide(side.score, mode)
-
-    if (winnerSide == null && mode === 'predictive') {
-        winnerSide = scoreWinnerSide(match.live.score, 'live')
+    if (mode === 'predictive') {
+        const liveWinnerSide = scoreWinnerSide(match.live.score, 'live')
+        if (liveWinnerSide != null) {
+            return liveWinnerSide === 'A' ? match.live.teamA : match.live.teamB
+        }
     }
 
+    const side = match[mode]
+    const winnerSide = scoreWinnerSide(side.score, mode)
     if (winnerSide == null) {
         return null
     }

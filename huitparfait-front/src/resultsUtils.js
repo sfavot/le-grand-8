@@ -96,14 +96,14 @@ export function buildTeamDisplay(game, side, mode) {
     const candidates = candidatesFromGame(game, side)
 
     if (mode === 'predictive') {
-        const predictionTeam = teamFromCandidates(candidates, ['prediction'])
-        if (predictionTeam != null) {
-            return teamDisplayFromResolved(predictionTeam)
-        }
-
         const knownTeam = teamFromCandidates(candidates, ['result', 'partialResult', 'db'])
         if (knownTeam != null) {
             return teamDisplayFromResolved(knownTeam)
+        }
+
+        const predictionTeam = teamFromCandidates(candidates, ['prediction'])
+        if (predictionTeam != null) {
+            return teamDisplayFromResolved(predictionTeam)
         }
 
         if (resolved != null && (resolved.countryCode || resolved.countryName)) {
@@ -136,6 +136,15 @@ export function buildTeamDisplay(game, side, mode) {
 }
 
 export function buildScoreDisplay(game, mode) {
+    if (game.goalsTeamA != null && game.goalsTeamB != null) {
+        return {
+            goalsA: game.goalsTeamA,
+            goalsB: game.goalsTeamB,
+            penaltiesA: game.penaltiesTeamA,
+            penaltiesB: game.penaltiesTeamB,
+        }
+    }
+
     if (mode === 'predictive'
             && game.predictionScoreTeamA != null
             && game.predictionScoreTeamB != null) {
@@ -145,15 +154,6 @@ export function buildScoreDisplay(game, mode) {
             penaltiesA: null,
             penaltiesB: null,
             isPrediction: true,
-        }
-    }
-
-    if (game.goalsTeamA != null && game.goalsTeamB != null) {
-        return {
-            goalsA: game.goalsTeamA,
-            goalsB: game.goalsTeamB,
-            penaltiesA: game.penaltiesTeamA,
-            penaltiesB: game.penaltiesTeamB,
         }
     }
 

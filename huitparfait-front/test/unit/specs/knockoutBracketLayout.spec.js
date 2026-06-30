@@ -143,6 +143,26 @@ describe('enrichBracketFromTree', () => {
         expect(quarterFinal.predictive.teamB.countryName).to.equal('Canada')
         expect(bracketTeamLabel(quarterFinal.predictive.teamB)).to.equal('Canada')
     })
+
+    it('propage le vainqueur réel en priorité sur le prono en mode predictive', () => {
+        const games = wc2026KnockoutGames()
+        const match89 = games.find((game) => game.gameName === 'Match 89')
+        match89.countryCodeTeamA = 'de'
+        match89.countryNameTeamA = 'Allemagne'
+        match89.countryCodeTeamB = 'fr'
+        match89.countryNameTeamB = 'France'
+        match89.goalsTeamA = 0
+        match89.goalsTeamB = 1
+        match89.predictionScoreTeamA = 2
+        match89.predictionScoreTeamB = 1
+
+        const data = buildKnockoutBracketData(games, null)
+        const quarterFinal = data.leftRounds[2].matches.find((match) => match.matchNumber === 97)
+
+        expect(quarterFinal.predictive.teamA.countryName).to.equal('France')
+        expect(quarterFinal.predictive.score.goalsA).to.equal(0)
+        expect(quarterFinal.predictive.score.goalsB).to.equal(1)
+    })
 })
 
 describe('verticalRoundGridStyle', () => {

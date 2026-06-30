@@ -77,7 +77,7 @@ describe('buildTeamDisplay', () => {
         })
     })
 
-    it('privilégie le candidat prono même si la résolution primaire est live', () => {
+    it('privilégie le candidat live en predictive quand les deux existent', () => {
         const game = {
             countryCodeTeamA: null,
             countryNameTeamA: '2e du Groupe A',
@@ -100,8 +100,8 @@ describe('buildTeamDisplay', () => {
 
         expect(buildTeamDisplay(game, 'A', 'predictive')).to.deep.equal({
             type: 'team',
-            countryCode: 'za',
-            countryName: 'Afrique du Sud',
+            countryCode: 'de',
+            countryName: 'Allemagne',
         })
     })
 
@@ -149,10 +149,22 @@ describe('buildScoreDisplay', () => {
         })
     })
 
-    it('affiche le prono en predictive même si le match est joué', () => {
+    it('affiche le résultat réel en predictive quand le match est joué', () => {
         expect(buildScoreDisplay({
             goalsTeamA: 2,
             goalsTeamB: 1,
+            predictionScoreTeamA: 3,
+            predictionScoreTeamB: 0,
+        }, 'predictive')).to.deep.equal({
+            goalsA: 2,
+            goalsB: 1,
+            penaltiesA: undefined,
+            penaltiesB: undefined,
+        })
+    })
+
+    it('affiche le prono en predictive quand le match n\'est pas joué', () => {
+        expect(buildScoreDisplay({
             predictionScoreTeamA: 3,
             predictionScoreTeamB: 0,
         }, 'predictive')).to.deep.equal({
