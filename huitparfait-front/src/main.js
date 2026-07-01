@@ -1,7 +1,8 @@
 import Vue from 'vue'
 import VueValidator from 'vue-validator'
 import store from './state/configureStore'
-import { fetchCurrentUser } from './state/actions/user'
+import { fetchCurrentUser, noConnectedUser } from './state/actions/user'
+import { setUnauthorizedHandler } from './WebApi'
 import App from './App'
 import router from './router'
 import Card from './components/Card'
@@ -46,6 +47,17 @@ function startApp() {
     }
     router.start(App, 'body')
 }
+
+let sessionExpiredRedirect = false
+
+setUnauthorizedHandler(() => {
+    if (sessionExpiredRedirect || store.state.user == null) {
+        return
+    }
+    sessionExpiredRedirect = true
+    store.dispatch(noConnectedUser())
+    window.location.href = '/auth/logout'
+})
 
 store.dispatch(fetchCurrentUser())
     .then(startApp)

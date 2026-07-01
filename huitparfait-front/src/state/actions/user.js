@@ -20,7 +20,7 @@ function fetchCurrentUserSuccess(user) {
 }
 
 export const NO_CONNECTED_USER = 'NO_CONNECTED_USER'
-function noConnectedUser() {
+export function noConnectedUser() {
     return {
         type: NO_CONNECTED_USER,
     }

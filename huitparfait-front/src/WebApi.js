@@ -3,6 +3,12 @@ import fetchPonyfill from 'fetch-ponyfill'
 
 const fetch = fetchPonyfill()
 
+let onUnauthorized = null
+
+export function setUnauthorizedHandler(handler) {
+    onUnauthorized = handler
+}
+
 export function fetchCurrentUser() {
     return execute('/users/me')
 }
@@ -140,6 +146,10 @@ function parseJSON(response) {
 function checkStatus(response) {
     if (response.status >= 200 && response.status < 300) {
         return Promise.resolve(response)
+    }
+
+    if (response.status === 401 && onUnauthorized != null) {
+        onUnauthorized()
     }
 
     return Promise.reject(new Error(response.statusText))
