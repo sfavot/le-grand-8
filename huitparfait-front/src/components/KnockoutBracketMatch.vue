@@ -23,6 +23,7 @@
                 <span v-if="teamScore('B') != null" class="bracketMatch-mobileScore">{{ teamScore('B') }}</span>
             </div>
         </div>
+        <div v-if="hasPenalties" class="bracketMatch-penalties bracketMatch-penalties--mobile">tab. {{* penaltiesLabel }}</div>
         <div v-if="footerTag" class="bracketMatch-footerTag" :class="footerTagClass">{{* footerTag }}</div>
         <div v-else class="bracketMatch-date">{{ matchDateShortLabel }}</div>
     </div>
@@ -50,6 +51,7 @@
             <span class="bracketMatch-label">{{ teamLabel('B') }}</span>
             <span v-if="teamScore('B') != null" class="bracketMatch-score">{{ teamScore('B') }}</span>
         </div>
+        <div v-if="hasPenalties" class="bracketMatch-penalties">tab. {{* penaltiesLabel }}</div>
         <div class="bracketMatch-date">{{ matchDateLabel }}</div>
     </div>
     </div>
@@ -129,6 +131,21 @@
                 }
 
                 return null
+            },
+            hasPenalties() {
+                const score = this.sideData.score
+                return score != null
+                    && score.isPrediction !== true
+                    && score.penaltiesA != null
+                    && score.penaltiesB != null
+            },
+            penaltiesLabel() {
+                const score = this.sideData.score
+                if (!this.hasPenalties) {
+                    return null
+                }
+
+                return `${score.penaltiesA} - ${score.penaltiesB}`
             },
         },
         methods: {
@@ -248,6 +265,19 @@
         font-weight: bold;
         min-width: 12px;
         text-align: right;
+    }
+
+    .bracketMatch-penalties {
+        background: #f8f8f8;
+        border-top: 1px solid #eee;
+        color: #777;
+        font-size: 9px;
+        padding: 1px 6px 2px;
+        text-align: center;
+    }
+
+    .bracketMatch-penalties--mobile {
+        padding: 2px 4px 0;
     }
 
     .bracketMatch-date {

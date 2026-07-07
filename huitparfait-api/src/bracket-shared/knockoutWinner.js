@@ -49,17 +49,46 @@ export function getMatchWinnerFromPrediction(game) {
     return winnerFromPredictionScore(game)
 }
 
+export function getMatchWinnerFromResult(game, isKnockout = false) {
+    if (!hasActualScore(game)) {
+        return null
+    }
+
+    const goalsA = game.goalsTeamA
+    const goalsB = game.goalsTeamB
+
+    if (goalsA > goalsB) {
+        return { side: 'A', team: teamFromSide(game, 'A'), source: 'result' }
+    }
+
+    if (goalsA < goalsB) {
+        return { side: 'B', team: teamFromSide(game, 'B'), source: 'result' }
+    }
+
+    if (isKnockout
+            && game.penaltiesTeamA != null
+            && game.penaltiesTeamB != null) {
+        if (game.penaltiesTeamA > game.penaltiesTeamB) {
+            return { side: 'A', team: teamFromSide(game, 'A'), source: 'result' }
+        }
+
+        if (game.penaltiesTeamA < game.penaltiesTeamB) {
+            return { side: 'B', team: teamFromSide(game, 'B'), source: 'result' }
+        }
+    }
+
+    return null
+}
+
 export function getMatchWinnerCandidates(game, isKnockout = false) {
     const candidates = []
 
-    if (hasActualScore(game)) {
-        const winner = getMatchWinner(game, isKnockout)
-        if (winner != null) {
-            candidates.push({
-                team: winner.team,
-                source: 'result',
-            })
-        }
+    const resultWinner = getMatchWinnerFromResult(game, isKnockout)
+    if (resultWinner != null) {
+        candidates.push({
+            team: resultWinner.team,
+            source: 'result',
+        })
     }
 
     if (hasPredictionScore(game)) {
@@ -76,38 +105,12 @@ export function getMatchWinnerCandidates(game, isKnockout = false) {
 }
 
 export function getMatchWinner(game, isKnockout = false) {
-    if (hasActualScore(game)) {
-        const goalsA = game.goalsTeamA
-        const goalsB = game.goalsTeamB
-
-        if (goalsA > goalsB) {
-            return { side: 'A', team: teamFromSide(game, 'A'), source: 'result' }
-        }
-
-        if (goalsA < goalsB) {
-            return { side: 'B', team: teamFromSide(game, 'B'), source: 'result' }
-        }
-
-        if (isKnockout
-                && game.penaltiesTeamA != null
-                && game.penaltiesTeamB != null) {
-            if (game.penaltiesTeamA > game.penaltiesTeamB) {
-                return { side: 'A', team: teamFromSide(game, 'A'), source: 'result' }
-            }
-
-            if (game.penaltiesTeamA < game.penaltiesTeamB) {
-                return { side: 'B', team: teamFromSide(game, 'B'), source: 'result' }
-            }
-        }
-
-        return null
+    const resultWinner = getMatchWinnerFromResult(game, isKnockout)
+    if (resultWinner != null) {
+        return resultWinner
     }
 
-    if (hasPredictionScore(game)) {
-        return winnerFromPredictionScore(game)
-    }
-
-    return null
+    return getMatchWinnerFromPrediction(game)
 }
 
 export function isKnockoutPhase(phase) {

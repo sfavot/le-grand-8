@@ -80,6 +80,18 @@ function buildSideRounds(semiNumber, side, childrenOf, byNumber) {
         .filter((round) => round != null)
 }
 
+export function hasKnownMatchResult(match) {
+    return match != null && match.live != null && match.live.score != null
+}
+
+export function matchDisplayMode(match, effectiveMode) {
+    if (hasKnownMatchResult(match)) {
+        return 'live'
+    }
+
+    return effectiveMode === 'predictive' ? 'predictive' : 'live'
+}
+
 export function scoreWinnerSide(score, mode = 'live') {
     if (score == null) {
         return null
@@ -93,7 +105,7 @@ export function scoreWinnerSide(score, mode = 'live') {
         return 'B'
     }
 
-    if (mode === 'live'
+    if (score.isPrediction !== true
             && score.penaltiesA != null
             && score.penaltiesB != null) {
         if (score.penaltiesA > score.penaltiesB) {
@@ -108,11 +120,27 @@ export function scoreWinnerSide(score, mode = 'live') {
     return null
 }
 
+function teamForWinnerSide(match, side, mode) {
+    const primary = side === 'A' ? match[mode].teamA : match[mode].teamB
+    const displayPrimary = toDisplayTeam(primary)
+    if (displayPrimary != null) {
+        return displayPrimary
+    }
+
+    if (mode !== 'predictive') {
+        return primary
+    }
+
+    const fallback = side === 'A' ? match.predictive.teamA : match.predictive.teamB
+    const displayFallback = toDisplayTeam(fallback)
+    return displayFallback != null ? displayFallback : fallback
+}
+
 function getWinnerTeam(match, mode) {
     if (mode === 'predictive') {
         const liveWinnerSide = scoreWinnerSide(match.live.score, 'live')
         if (liveWinnerSide != null) {
-            return liveWinnerSide === 'A' ? match.live.teamA : match.live.teamB
+            return teamForWinnerSide(match, liveWinnerSide, 'live')
         }
     }
 
@@ -122,7 +150,7 @@ function getWinnerTeam(match, mode) {
         return null
     }
 
-    return winnerSide === 'A' ? side.teamA : side.teamB
+    return teamForWinnerSide(match, winnerSide, mode)
 }
 
 const MAX_BRACKET_TEAM_LABEL_LENGTH = 15
@@ -337,12 +365,13 @@ function preferDisplayTeam(current, rebuilt) {
     const currentTeam = toDisplayTeam(current)
     const rebuiltTeam = toDisplayTeam(rebuilt)
 
-    if (rebuiltTeam != null && rebuiltTeam.countryName) {
-        return rebuiltTeam
-    }
-
+    // L'arbre propage d'abord les vainqueurs réels ; ne pas les écraser par un prono.
     if (currentTeam != null && currentTeam.countryName) {
         return currentTeam
+    }
+
+    if (rebuiltTeam != null && rebuiltTeam.countryName) {
+        return rebuiltTeam
     }
 
     if (rebuiltTeam != null) {

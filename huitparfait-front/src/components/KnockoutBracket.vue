@@ -127,6 +127,7 @@
         bracketTeamLabel,
         bracketTeamTitle,
         buildKnockoutBracketData,
+        matchDisplayMode,
     } from '../knockoutBracketLayout'
     import KnockoutBracketMatch from './KnockoutBracketMatch'
     import KnockoutBracketVertical from './KnockoutBracketVertical'
@@ -219,11 +220,7 @@
                 return bracketSlotStyle(index, matchCount, this.bracketData.leafCount)
             },
             matchMode(match) {
-                if (this.effectiveMode === 'predictive') {
-                    return 'predictive'
-                }
-
-                return 'live'
+                return matchDisplayMode(match, this.effectiveMode)
             },
             connectorClass(index, matchCount, roundIndex, totalRounds, side) {
                 const isFirstRound = roundIndex === 0

@@ -333,6 +333,39 @@ describe('enrichGamesWithBracket', () => {
         assert.equal(state.isPredictable, false)
     })
 
+    it('privilégie le vainqueur réel sur le prono pour un slot Vainqueur du Match', () => {
+        const us = { id: 'us', code: 'us', name: 'États-Unis' }
+        const be = { id: 'be', code: 'be', name: 'Belgique' }
+
+        const quarter = makeKnockoutGame({
+            gameId: 'k100',
+            gameName: 'Match 100',
+            phase: 'Quart de finale',
+            teamA: us,
+            teamB: be,
+            startsAt: 1000,
+            goalsA: 1,
+            goalsB: 4,
+            predictionA: 2,
+            predictionB: 1,
+        })
+
+        const semi = makeKnockoutGame({
+            gameId: 'k102',
+            gameName: 'Match 102',
+            phase: 'Demi-finale',
+            teamA: { id: 'u99', name: 'Vainqueur du Match 99' },
+            teamB: { id: 'u100', name: 'Vainqueur du Match 100' },
+            startsAt: Date.now() + 100000,
+        })
+
+        const bracket = enrichGamesWithBracket([quarter, semi], Date.now())
+        const state = bracket.get('k102')
+
+        assert.equal(state.teamB.resolved.countryCode, 'be')
+        assert.equal(state.teamB.source, 'result')
+    })
+
     it('n\'affecte pas le même 3e repêché à plusieurs créneaux des 16es', () => {
         const groupGames = makeTwelveGroupGames()
         const bestThirdSlots = [

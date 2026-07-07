@@ -4,7 +4,7 @@ import {
     resolveBestThirdCandidates,
     resolveGroupRankCandidates,
 } from './groupStandings.js'
-import { getMatchWinner, getMatchWinnerCandidates, getMatchWinnerFromPrediction, isKnockoutPhase } from './knockoutWinner.js'
+import { getMatchWinner, getMatchWinnerCandidates, getMatchWinnerFromPrediction, getMatchWinnerFromResult, isKnockoutPhase } from './knockoutWinner.js'
 
 /**
  * Flatten API response grouped by day into a single array of games.
@@ -116,15 +116,16 @@ function resolveWinnerMatchCandidates(context, matchNumber) {
     }
 
     const isKO = isKnockoutPhase(feederGame.phase)
-    const candidates = []
-
     const resultGame = buildGameWithResolvedTeams(feederGame, bracketState, 'partialResult')
-    for (const candidate of getMatchWinnerCandidates(resultGame, isKO)) {
-        if (candidate.source === 'result') {
-            candidates.push(candidate)
-        }
+    const resultWinner = getMatchWinnerFromResult(resultGame, isKO)
+    if (resultWinner != null) {
+        return [{
+            team: resultWinner.team,
+            source: 'result',
+        }]
     }
 
+    const candidates = []
     const predictionGame = buildGameWithResolvedTeams(feederGame, bracketState, 'prediction')
     for (const candidate of getMatchWinnerCandidates(predictionGame, isKO)) {
         if (candidate.source === 'prediction') {
@@ -150,7 +151,7 @@ function resolveLoserMatchCandidates(context, matchNumber) {
     const candidates = []
 
     const resultGame = buildGameWithResolvedTeams(feederGame, bracketState, 'partialResult')
-    const resultWinner = getMatchWinner(resultGame, isKO)
+    const resultWinner = getMatchWinnerFromResult(resultGame, isKO)
     if (resultWinner != null) {
         const loserSide = resultWinner.side === 'A' ? 'B' : 'A'
         candidates.push({

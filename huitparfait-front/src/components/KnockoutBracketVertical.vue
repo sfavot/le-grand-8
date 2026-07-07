@@ -166,7 +166,7 @@
 
 <script type="text/babel">
     import { flagSrc, onFlagError } from '../flagSrc'
-    import { bracketTeamLabel, bracketTeamTitle } from '../knockoutBracketLayout'
+    import { bracketTeamLabel, bracketTeamTitle, matchDisplayMode } from '../knockoutBracketLayout'
     import KnockoutBracketMatch from './KnockoutBracketMatch'
 
     export default {
@@ -223,11 +223,7 @@
         methods: {
             onFlagError,
             matchMode(match) {
-                if (this.effectiveMode === 'predictive') {
-                    return 'predictive'
-                }
-
-                return 'live'
+                return matchDisplayMode(match, this.effectiveMode)
             },
             matchPairs(matches) {
                 const pairs = []

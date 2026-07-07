@@ -3,6 +3,7 @@ import {
     bracketTeamLabel,
     buildKnockoutBracketData,
     formatBracketMatchDate,
+    matchDisplayMode,
     scoreWinnerSide,
     splitRoundOf16MatchesByBracket,
     verticalBottomStageBridgePairStyle,
@@ -163,6 +164,24 @@ describe('enrichBracketFromTree', () => {
         expect(quarterFinal.predictive.score.goalsA).to.equal(0)
         expect(quarterFinal.predictive.score.goalsB).to.equal(1)
     })
+
+    it('propage le vainqueur réel du quart vers la demi en mode predictive', () => {
+        const games = wc2026KnockoutGames()
+        const match100 = games.find((game) => game.gameName === 'Match 100')
+        match100.countryCodeTeamA = 'us'
+        match100.countryNameTeamA = 'États-Unis'
+        match100.countryCodeTeamB = 'be'
+        match100.countryNameTeamB = 'Belgique'
+        match100.goalsTeamA = 1
+        match100.goalsTeamB = 4
+        match100.predictionScoreTeamA = 2
+        match100.predictionScoreTeamB = 1
+
+        const data = buildKnockoutBracketData(games, null)
+        const semiFinal = data.rightRounds[0].matches.find((match) => match.matchNumber === 102)
+
+        expect(semiFinal.predictive.teamB.countryName).to.equal('Belgique')
+    })
 })
 
 describe('verticalRoundGridStyle', () => {
@@ -208,7 +227,7 @@ describe('verticalBridgePairStyle', () => {
 })
 
 describe('scoreWinnerSide', () => {
-    it('départage aux tirs au but en direct', () => {
+    it('départage aux tirs au but sur un résultat réel', () => {
         expect(scoreWinnerSide({
             goalsA: 1,
             goalsB: 1,
@@ -217,13 +236,43 @@ describe('scoreWinnerSide', () => {
         }, 'live')).to.equal('B')
     })
 
-    it('ignore les tirs au but en mode prédictif', () => {
+    it('départage aux tirs au but sur un résultat réel en mode prédictif', () => {
         expect(scoreWinnerSide({
             goalsA: 1,
             goalsB: 1,
             penaltiesA: 4,
             penaltiesB: 5,
+        }, 'predictive')).to.equal('B')
+    })
+
+    it('ignore les tirs au but sur un score prédit', () => {
+        expect(scoreWinnerSide({
+            goalsA: 1,
+            goalsB: 1,
+            penaltiesA: 4,
+            penaltiesB: 5,
+            isPrediction: true,
         }, 'predictive')).to.equal(null)
+    })
+})
+
+describe('matchDisplayMode', () => {
+    it('utilise le mode live quand le résultat est connu', () => {
+        const match = {
+            live: { score: { goalsA: 1, goalsB: 0 } },
+            predictive: { score: { goalsA: 2, goalsB: 1, isPrediction: true } },
+        }
+
+        expect(matchDisplayMode(match, 'predictive')).to.equal('live')
+    })
+
+    it('conserve le mode prédictif pour un match à venir', () => {
+        const match = {
+            live: { score: null },
+            predictive: { score: { goalsA: 2, goalsB: 1, isPrediction: true } },
+        }
+
+        expect(matchDisplayMode(match, 'predictive')).to.equal('predictive')
     })
 })
 
