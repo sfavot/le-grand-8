@@ -1,6 +1,26 @@
 const path = require('path')
 const fs = require('fs')
-const dotenv = require('dotenv')
+
+function loadDotenv() {
+    const candidates = [
+        path.join(__dirname, '../node_modules/dotenv'),
+        path.join(__dirname, '../huitparfait-api/node_modules/dotenv'),
+        path.join(__dirname, '../huitparfait-auth/node_modules/dotenv'),
+        'dotenv',
+    ]
+
+    for (const candidate of candidates) {
+        try {
+            return require(candidate)
+        } catch {
+            // try next
+        }
+    }
+
+    return null
+}
+
+const dotenv = loadDotenv()
 
 function findRepoRoot(startDir) {
     let dir = path.resolve(startDir)
@@ -28,6 +48,10 @@ function loadEnv(options = {}) {
     const root = options.root || findRepoRoot(path.join(__dirname, '..'))
     const envPath = path.join(root, '.env')
     const localPath = path.join(root, '.env.local')
+
+    if (dotenv == null) {
+        return root
+    }
 
     if (fs.existsSync(envPath)) {
         dotenv.config({ path: envPath })
