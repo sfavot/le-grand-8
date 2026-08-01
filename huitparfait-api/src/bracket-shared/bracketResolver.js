@@ -4,7 +4,7 @@ import {
     resolveBestThirdCandidates,
     resolveGroupRankCandidates,
 } from './groupStandings.js'
-import { getMatchWinner, getMatchWinnerCandidates, getMatchWinnerFromPrediction, getMatchWinnerFromResult, isKnockoutPhase } from './knockoutWinner.js'
+import { getMatchWinnerCandidates, getMatchWinnerFromPrediction, getMatchWinnerFromResult, isKnockoutPhase } from './knockoutWinner.js'
 
 /**
  * Flatten API response grouped by day into a single array of games.
