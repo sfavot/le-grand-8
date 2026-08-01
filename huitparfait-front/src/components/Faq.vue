@@ -27,13 +27,11 @@
                     <a href="https://github.com/huitparfait/huitparfait-2016" rel="noopener noreferrer">l'équipe Huit Parfait (2016)</a>.
                 </p>
             </card>
-            <card class="card--login" v-if="user == null">
-                <h2 class="card-title">Connexion</h2>
+            <card class="card--paused">
+                <h2 class="card-title">Site en pause</h2>
                 <p>
-                    Pour vous éviter de créer un n-ième mot de passe, la connexion se fait avec un site externe.
-                </p>
-                <p class="card--login-allBtn">
-                    <a class="loginBtn loginBtn--google" href="/auth/google">Connexion avec Google</a>
+                    Le Grand&nbsp;8 fait une pause après la Coupe du monde.
+                    <strong>Rendez-vous à l'été&nbsp;2028 pour l'Euro&nbsp;!</strong>
                 </p>
             </card>
         </card-list>
@@ -201,13 +199,7 @@
 </template>
 
 <script type="text/babel">
-    export default {
-        data() {
-            return {
-                user: this.$select('user'),
-            }
-        },
-    }
+    export default {}
 </script>
 
 <style scoped>
@@ -227,6 +219,7 @@
         color: #3d8f6a;
     }
 
+    .card--paused,
     .card--login {
         flex-basis: 400px;
         overflow: visible;

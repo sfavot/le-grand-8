@@ -14,6 +14,7 @@ acme/
 
 # Data
 huitparfait-data/data
+backups/
 
 # Node build
 dist
