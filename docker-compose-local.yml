@@ -6,7 +6,7 @@ services:
             - "3000:80"
 
     huitparfait-front:
-        image: node:6.2.0
+        image: node:22
         entrypoint: npm run dev
         working_dir: /app
         volumes:
@@ -16,7 +16,7 @@ services:
             - "traefik.frontend.rule=Host:localhost"
 
     huitparfait-auth:
-        image: node:6.2.0
+        image: node:22
         entrypoint: npm run dev
         working_dir: /app
         volumes:
@@ -27,7 +27,7 @@ services:
             - "traefik.frontend.rule=Host:localhost;PathPrefix:/api,/auth"
 
     huitparfait-api:
-        image: node:6.2.0
+        image: node:22
         entrypoint: npm run dev
         working_dir: /app
         volumes:
